@@ -1714,14 +1714,17 @@ fun AccountSection(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Hero Profile Header Card matching the AuditGrid Mockup
         Surface(
-            color = AgDutyBannerNavy,
+            color = Color.Transparent,
             contentColor = Color.White,
-            shape = RoundedCornerShape(16.dp),
-            shadowElevation = 2.dp,
+            shape = RoundedCornerShape(18.dp),
+            shadowElevation = 4.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AgSectionHeaderGradient)
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1730,19 +1733,10 @@ fun AccountSection(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    ProAuditorAvatar(
+                        name = activeAuditor.fullName.ifBlank { activeAuditor.username },
+                        size = 48.dp
+                    )
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -1757,7 +1751,7 @@ fun AccountSection(
                             text = "@${activeAuditor.username}" +
                                 (if (activeAuditor.phone.isNotBlank()) " • ${activeAuditor.phone}" else "") +
                                 (if (activeRole != null) " • ${activeRole.name}" else ""),
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = Color(0xFFDBEAFE),
                             fontSize = 12.sp
                         )
                     }
@@ -1803,20 +1797,54 @@ fun AccountSection(
             }
         }
 
-        val stats = listOf(
-            "Towns" to citiesCount,
-            "Localities" to territoriesCount,
-            "Shops" to shopsCount,
-            "Distributors" to distributorsCount
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                StatCard(stats[0].first, stats[0].second, Modifier.weight(1f))
-                StatCard(stats[1].first, stats[1].second, Modifier.weight(1f))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                ProKpiPastelCard(
+                    countText = citiesCount.toString(),
+                    label = "Assigned Towns",
+                    icon = Icons.Default.LocationCity,
+                    iconBgColor = Color(0xFF1A5CE5),
+                    cardBrush = AgKpiBlueBrush,
+                    borderColor = Color(0xFFC7DCFF),
+                    chevronBgColor = Color(0xFFCFE1FF),
+                    onClick = onOpenPlaces,
+                    modifier = Modifier.weight(1f)
+                )
+                ProKpiPastelCard(
+                    countText = territoriesCount.toString(),
+                    label = "Localities",
+                    icon = Icons.Default.Apartment,
+                    iconBgColor = Color(0xFF12A150),
+                    cardBrush = AgKpiGreenBrush,
+                    borderColor = Color(0xFFBDF0D4),
+                    chevronBgColor = Color(0xFFC4F2D9),
+                    onClick = onOpenPlaces,
+                    modifier = Modifier.weight(1f)
+                )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                StatCard(stats[2].first, stats[2].second, Modifier.weight(1f))
-                StatCard(stats[3].first, stats[3].second, Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                ProKpiPastelCard(
+                    countText = shopsCount.toString(),
+                    label = "Retail Shops",
+                    icon = Icons.Default.Storefront,
+                    iconBgColor = Color(0xFFF07B12),
+                    cardBrush = AgKpiAmberBrush,
+                    borderColor = Color(0xFFFFD8B0),
+                    chevronBgColor = Color(0xFFFFDFBA),
+                    onClick = onOpenPlaces,
+                    modifier = Modifier.weight(1f)
+                )
+                ProKpiPastelCard(
+                    countText = distributorsCount.toString(),
+                    label = "Distributors",
+                    icon = Icons.Default.LocalShipping,
+                    iconBgColor = Color(0xFF7C3AED),
+                    cardBrush = AgKpiPurpleBrush,
+                    borderColor = Color(0xFFDCC7FF),
+                    chevronBgColor = Color(0xFFE2D0FF),
+                    onClick = onOpenDistributors,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 

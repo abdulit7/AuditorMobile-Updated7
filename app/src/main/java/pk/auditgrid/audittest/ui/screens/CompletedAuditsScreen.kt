@@ -182,19 +182,20 @@ fun CompletedAuditsScreen(
     val totalSubmittedCount = distributorReports.size + retailReports.size + customSubmissions.size
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Strict Read-Only Ledger Header Card
+        // Strict Read-Only Ledger Header Card (Navy-Royal Gradient Hero + Ledger Info)
         Surface(
             color = AgCardWhite,
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(18.dp),
             border = BorderStroke(1.dp, AgBorder),
+            shadowElevation = 3.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AgSectionHeaderGradient)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -205,23 +206,23 @@ fun CompletedAuditsScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(38.dp)
-                                .background(AgPrimary, RoundedCornerShape(10.dp)),
+                                .size(40.dp)
+                                .background(Color.White.copy(alpha = 0.16f), RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.TaskAlt,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(21.dp)
                             )
                         }
                         Column {
                             Text(
                                 text = "Completed Audits",
-                                color = AgForeground,
+                                color = Color.White,
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.ExtraBold
                             )
                             Text(
                                 text = if (lastSyncedAt.isNotBlank()) {
@@ -229,7 +230,7 @@ fun CompletedAuditsScreen(
                                 } else {
                                     "$totalSubmittedCount submitted to main server"
                                 },
-                                color = AgMutedText,
+                                color = Color(0xFFDBEAFE),
                                 fontSize = 11.sp
                             )
                         }
@@ -238,11 +239,11 @@ fun CompletedAuditsScreen(
                     Button(
                         onClick = onSyncNow,
                         enabled = !syncing,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AgActionBlue),
+                        shape = RoundedCornerShape(999.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.18f)),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
-                            .heightIn(min = 40.dp)
+                            .heightIn(min = 38.dp)
                             .testTag("completed_sync_button")
                     ) {
                         if (syncing) {
@@ -252,18 +253,24 @@ fun CompletedAuditsScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Syncing…", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Syncing…", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Sync,
                                 contentDescription = "Sync with server",
+                                tint = Color.White,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sync", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Sync", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
+
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
 
                 // Read-only compliance notice
                 Surface(
@@ -320,6 +327,7 @@ fun CompletedAuditsScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                }
                 }
             }
         }

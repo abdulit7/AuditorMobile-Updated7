@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -421,20 +422,31 @@ fun AuditorMobileShell(
         MobileSection.TERRITORIES,
         MobileSection.LOCATIONS,
         MobileSection.SUBLOCATIONS,
-        MobileSection.SHOPS
+        MobileSection.SHOPS,
+        MobileSection.DISTRIBUTORS
     )
 
     val isSecondarySection = isGeoSection ||
-        uiState.activeSection == MobileSection.DISTRIBUTORS ||
-        uiState.activeSection == MobileSection.COMPLETED
+        uiState.activeSection == MobileSection.COMPLETED ||
+        uiState.activeSection == MobileSection.PLANS
 
-    // Back handler on non-Audit top-level sections when no detail item is open
-    if (uiState.activeSection != MobileSection.AUDIT &&
+    // Back handler on non-Dashboard sections when no detail item is open
+    if (uiState.activeSection != MobileSection.DASHBOARD &&
         uiState.selectedShop == null &&
         uiState.selectedDistributor == null
     ) {
         BackHandler {
-            viewModel.setSection(MobileSection.AUDIT)
+            viewModel.setSection(MobileSection.DASHBOARD)
+        }
+    }
+
+    val formattedLastSyncTime = remember(uiState.lastSyncedAt) {
+        val raw = uiState.lastSyncedAt.trim()
+        when {
+            raw.isBlank() -> "Just now"
+            raw.contains("T") -> raw.substringAfter("T").take(5)
+            raw.length >= 8 -> raw.takeLast(8)
+            else -> raw
         }
     }
 
@@ -443,131 +455,173 @@ fun AuditorMobileShell(
             .fillMaxSize()
             .background(AgBackground)
     ) {
-        // Top App Bar matching the AuditGrid Mobile Dashboard Mockup (#0A2246)
+        // Curved Navy-Royal Hero Top Header matching the AuditGrid Mobile Dashboard Mockup
         Surface(
-            color = AgNavyHeader,
+            color = Color.Transparent,
             contentColor = Color.White,
-            shadowElevation = 2.dp,
+            shape = RoundedCornerShape(
+                bottomStart = if (uiState.activeSection == MobileSection.DASHBOARD) 26.dp else 18.dp,
+                bottomEnd = if (uiState.activeSection == MobileSection.DASHBOARD) 26.dp else 18.dp
+            ),
+            shadowElevation = 6.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
+            Column(
                 modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.statusBars)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .background(
+                        brush = AgHeroGradient,
+                        shape = RoundedCornerShape(
+                            bottomStart = if (uiState.activeSection == MobileSection.DASHBOARD) 26.dp else 18.dp,
+                            bottomEnd = if (uiState.activeSection == MobileSection.DASHBOARD) 26.dp else 18.dp
+                        )
+                    )
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 10.dp,
+                        bottom = if (uiState.activeSection == MobileSection.DASHBOARD) 16.dp else 12.dp
+                    ),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                // Row 1: Brand Shield + AuditGrid Title + Online Pill + Bell + Sync
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    if (uiState.selectedShop != null || uiState.selectedDistributor != null || isSecondarySection) {
-                        Surface(
-                            color = Color.White.copy(alpha = 0.14f),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clickable {
-                                    if (uiState.selectedShop != null || uiState.selectedDistributor != null) {
-                                        viewModel.selectShop(null)
-                                        viewModel.selectDistributor(null)
-                                    } else {
-                                        viewModel.setSection(MobileSection.AUDIT)
-                                    }
-                                }
-                                .testTag("top_bar_back_button")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (uiState.selectedShop != null ||
+                            uiState.selectedDistributor != null ||
+                            uiState.activeSection != MobileSection.DASHBOARD
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                            Surface(
+                                color = Color.White.copy(alpha = 0.14f),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clickable {
+                                        if (uiState.selectedShop != null || uiState.selectedDistributor != null) {
+                                            viewModel.selectShop(null)
+                                            viewModel.selectDistributor(null)
+                                        } else {
+                                            viewModel.setSection(MobileSection.DASHBOARD)
+                                        }
+                                    }
+                                    .testTag("top_bar_back_button")
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        AuditGridShieldLogo(size = 38.dp)
+
+                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text(
+                                text = "AuditGrid",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val sectionSubtitle = when {
+                                uiState.selectedShop != null -> "Shop Profile"
+                                uiState.selectedDistributor != null -> "Distributor Profile"
+                                uiState.activeSection == MobileSection.DASHBOARD -> "Audit • Track • Grow"
+                                uiState.activeSection == MobileSection.AUDIT -> "Field Audit Forms"
+                                uiState.activeSection == MobileSection.DUTIES -> "Assigned Duties"
+                                uiState.activeSection == MobileSection.PLANS -> "Daily Route Plans"
+                                uiState.activeSection == MobileSection.COMPLETED -> "Completed Audits"
+                                uiState.activeSection == MobileSection.DISTRIBUTORS -> "Assigned Distributors"
+                                uiState.activeSection == MobileSection.ACCOUNT -> "Auditor Account"
+                                else -> "Assigned Places"
+                            }
+                            Text(
+                                text = sectionSubtitle,
+                                color = Color(0xFFBDD4F7),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Online / Offline Status Pill matching sample image
+                        Surface(
+                            color = Color.White.copy(alpha = 0.13f),
+                            shape = RoundedCornerShape(999.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(
+                                            if (uiState.online) Color(0xFF22C55E) else Color(0xFFF59E0B),
+                                            CircleShape
+                                        )
+                                )
+                                Text(
+                                    text = if (uiState.online) "Online" else "Offline",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
-                    }
 
-                    Surface(
-                        color = Color.White.copy(alpha = 0.10f),
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
-                    ) {
-                        Box(modifier = Modifier.padding(4.dp)) {
-                            AuditGridShieldLogo(size = 26.dp)
+                        // Duty Notifications Bell Button with Red Badge
+                        val badgeNumber = when {
+                            uiState.unreadNotificationsCount > 0 -> uiState.unreadNotificationsCount
+                            uiState.notifications.isNotEmpty() -> uiState.notifications.size
+                            else -> uiState.duties.count {
+                                it.status.equals("Assigned", ignoreCase = true) ||
+                                    it.status.equals("In Progress", ignoreCase = true)
+                            }
                         }
-                    }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Text(
-                            text = "AuditGrid",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        val sectionSubtitle = when {
-                            uiState.selectedShop != null -> "Shop Profile"
-                            uiState.selectedDistributor != null -> "Distributor Profile"
-                            uiState.activeSection == MobileSection.AUDIT -> "Field Audit Workspace"
-                            uiState.activeSection == MobileSection.DUTIES -> "Assigned Duties"
-                            uiState.activeSection == MobileSection.PLANS -> "Daily Audit Plans"
-                            uiState.activeSection == MobileSection.COMPLETED -> "Completed Audits"
-                            uiState.activeSection == MobileSection.DISTRIBUTORS -> "Assigned Distributors"
-                            uiState.activeSection == MobileSection.ACCOUNT -> "Auditor Account"
-                            else -> "Assigned Geography"
-                        }
-                        Text(
-                            text = sectionSubtitle,
-                            color = Color(0xFF94A3B8),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Duty Notifications Bell Button with Red Badge
-                    val badgeNumber = when {
-                        uiState.unreadNotificationsCount > 0 -> uiState.unreadNotificationsCount
-                        uiState.notifications.isNotEmpty() -> uiState.notifications.size
-                        else -> uiState.duties.count {
-                            it.status.equals("Assigned", ignoreCase = true) ||
-                                it.status.equals("In Progress", ignoreCase = true)
-                        }
-                    }
-
-                    Surface(
-                        color = Color.White.copy(alpha = 0.10f),
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { viewModel.toggleNotificationsDialog(true) }
-                            .testTag("top_bar_notifications_button")
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .clickable { viewModel.toggleNotificationsDialog(true) }
+                                .testTag("top_bar_notifications_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Notifications,
                                 contentDescription = "Duty Notifications",
-                                tint = Color(0xFFE2E8F0),
-                                modifier = Modifier.size(21.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(23.dp)
                             )
                             if (badgeNumber > 0) {
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .offset(x = (-3).dp, y = 3.dp)
-                                        .size(17.dp)
+                                        .offset(x = (-2).dp, y = 2.dp)
+                                        .size(18.dp)
                                         .background(Color(0xFFEF4444), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -580,22 +634,18 @@ fun AuditorMobileShell(
                                 }
                             }
                         }
-                    }
 
-                    // Sync Icon Button in Top App Bar
-                    Surface(
-                        color = Color.White.copy(alpha = 0.10f),
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable(enabled = !uiState.syncing) {
-                                viewModel.syncAllNow(manual = true)
-                            }
-                            .testTag("top_bar_sync_button")
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        // Sync Icon Button in Top App Bar
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable(enabled = !uiState.syncing) {
+                                    viewModel.syncAllNow(manual = true)
+                                }
+                                .testTag("top_bar_sync_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
                             if (uiState.syncing) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
@@ -607,8 +657,112 @@ fun AuditorMobileShell(
                                     imageVector = Icons.Default.Sync,
                                     contentDescription = "Sync with main server",
                                     tint = Color.White,
-                                    modifier = Modifier.size(21.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
+                            }
+                        }
+                    }
+                }
+
+                // Row 2: Auditor Avatar + Name + Role & Frosted "Last Sync" Pill (on Dashboard)
+                if (uiState.activeSection == MobileSection.DASHBOARD) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { viewModel.setSection(MobileSection.ACCOUNT) }
+                        ) {
+                            ProAuditorAvatar(
+                                name = activeAuditor.fullName.ifBlank { activeAuditor.username },
+                                size = 52.dp
+                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = activeAuditor.username.ifBlank { activeAuditor.fullName },
+                                    color = Color.White,
+                                    fontSize = 19.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = Color(0xFFBDD4F7),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = activeRole?.name?.ifBlank { "Field Auditor" } ?: "Field Auditor",
+                                        color = Color(0xFFDBEAFE),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDBEAFE),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Frosted Sky-Blue "Last Sync" Pill Card matching sample image
+                        Surface(
+                            color = Color.Transparent,
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
+                            shadowElevation = 2.dp,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable(enabled = !uiState.syncing) {
+                                    viewModel.syncAllNow(manual = true)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .background(AgLastSyncPillGradient)
+                                    .padding(horizontal = 13.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = "Last Sync",
+                                    tint = Color(0xFF0A2246),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                    Text(
+                                        text = "Last Sync",
+                                        color = Color(0xFF0A2246),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = 13.sp
+                                    )
+                                    Text(
+                                        text = if (uiState.syncing) "Syncing…" else formattedLastSyncTime,
+                                        color = Color(0xFF0F2952),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        lineHeight = 13.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -726,6 +880,83 @@ fun AuditorMobileShell(
             }
         }
 
+        // Duties / Route Plans Mode Switcher Bar
+        if (uiState.activeSection == MobileSection.DUTIES || uiState.activeSection == MobileSection.PLANS) {
+            Surface(
+                color = AgCardWhite,
+                border = BorderStroke(1.dp, AgBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val isDutiesActive = uiState.activeSection == MobileSection.DUTIES
+                    Surface(
+                        color = if (isDutiesActive) AgRoyalBlue else AgFormBg,
+                        contentColor = if (isDutiesActive) Color.White else AgMutedText,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, if (isDutiesActive) AgRoyalBlue else AgBorder),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { viewModel.setSection(MobileSection.DUTIES) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AssignmentTurnedIn,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Assigned Duties (${uiState.duties.size})",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    val isPlansActive = uiState.activeSection == MobileSection.PLANS
+                    Surface(
+                        color = if (isPlansActive) AgRoyalBlue else AgFormBg,
+                        contentColor = if (isPlansActive) Color.White else AgMutedText,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, if (isPlansActive) AgRoyalBlue else AgBorder),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { viewModel.setSection(MobileSection.PLANS) }
+                            .testTag("nav_tab_plans")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Route,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Route Plans",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Geography Drill-Down Sub-Tabs
         if (isGeoSection) {
             Surface(
@@ -744,7 +975,8 @@ fun AuditorMobileShell(
                         Triple(MobileSection.CITIES, "Towns", assignedCities.size),
                         Triple(MobileSection.TERRITORIES, "Localities", assignedTerritories.size),
                         Triple(MobileSection.SUBLOCATIONS, "Sub-Localities", assignedSubLocations.size),
-                        Triple(MobileSection.SHOPS, "Shops", assignedShops.size)
+                        Triple(MobileSection.SHOPS, "Shops", assignedShops.size),
+                        Triple(MobileSection.DISTRIBUTORS, "Distributors", assignedDistributors.size)
                     )
                     geoTabs.forEach { (sec, label, count) ->
                         val active = uiState.activeSection == sec
@@ -922,6 +1154,29 @@ fun AuditorMobileShell(
                     uiState.auditReports.size + uiState.retailReports.size + uiState.customSubmissions.size
 
                 when (uiState.activeSection) {
+                    MobileSection.DASHBOARD -> {
+                        DashboardScreen(
+                            activeAuditor = activeAuditor,
+                            cities = uiState.cities,
+                            territories = uiState.territories,
+                            subLocations = uiState.subLocations,
+                            shops = uiState.shops,
+                            distributors = uiState.distributors,
+                            duties = uiState.duties,
+                            completedTotalCount = totalCompletedCount,
+                            pendingOutboxCount = uiState.pendingOutbox.size,
+                            syncing = uiState.syncing,
+                            onOpenAudit = { viewModel.setSection(MobileSection.AUDIT) },
+                            onOpenDuties = { viewModel.setSection(MobileSection.DUTIES) },
+                            onOpenPlans = { viewModel.setSection(MobileSection.PLANS) },
+                            onOpenCompleted = { viewModel.setSection(MobileSection.COMPLETED) },
+                            onOpenPlaces = { viewModel.setSection(MobileSection.TERRITORIES) },
+                            onOpenShops = { viewModel.setSection(MobileSection.SHOPS) },
+                            onStartDutyAudit = viewModel::startDutyAudit,
+                            onSyncNow = { viewModel.syncAllNow(manual = true) }
+                        )
+                    }
+
                     MobileSection.AUDIT -> {
                         DistributorAuditFormScreen(
                             activeAuditor = activeAuditor,
@@ -1172,10 +1427,10 @@ fun AuditorMobileShell(
             }
         }
 
-        // Bottom Navigation Bar matching the 4-Tab AuditGrid Mockup (Audit, Duties, Plans, Account)
+        // Bottom Navigation Bar matching the 5-Tab AuditGrid Mockup (Dashboard, Audit, Duties, Places, Account)
         Surface(
             color = AgCardWhite,
-            shadowElevation = 8.dp,
+            shadowElevation = 10.dp,
             border = BorderStroke(1.dp, Color(0xFFDCE6F4)),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1183,13 +1438,21 @@ fun AuditorMobileShell(
                 modifier = Modifier
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BottomNavItem(
+                    label = "Dashboard",
+                    icon = Icons.Default.Home,
+                    active = uiState.activeSection == MobileSection.DASHBOARD,
+                    testTag = "nav_tab_dashboard",
+                    onClick = { viewModel.setSection(MobileSection.DASHBOARD) },
+                    modifier = Modifier.weight(1f)
+                )
+                BottomNavItem(
                     label = "Audit",
-                    icon = Icons.Default.AssignmentTurnedIn,
+                    icon = Icons.Default.Assignment,
                     active = uiState.activeSection == MobileSection.AUDIT,
                     testTag = "nav_tab_audit",
                     onClick = { viewModel.setSection(MobileSection.AUDIT) },
@@ -1197,26 +1460,26 @@ fun AuditorMobileShell(
                 )
                 BottomNavItem(
                     label = "Duties",
-                    icon = Icons.Default.DateRange,
-                    active = uiState.activeSection == MobileSection.DUTIES,
+                    icon = Icons.Default.AssignmentTurnedIn,
+                    active = uiState.activeSection == MobileSection.DUTIES ||
+                        uiState.activeSection == MobileSection.PLANS,
                     testTag = "nav_tab_duties",
                     onClick = { viewModel.setSection(MobileSection.DUTIES) },
                     modifier = Modifier.weight(1f)
                 )
                 BottomNavItem(
-                    label = "Plans",
+                    label = "Places",
                     icon = Icons.Default.LocationOn,
-                    active = uiState.activeSection == MobileSection.PLANS || isGeoSection,
-                    testTag = "nav_tab_plans",
-                    onClick = { viewModel.setSection(MobileSection.PLANS) },
+                    active = isGeoSection,
+                    testTag = "nav_tab_places",
+                    onClick = { viewModel.setSection(MobileSection.TERRITORIES) },
                     modifier = Modifier.weight(1f)
                 )
                 BottomNavItem(
                     label = "Account",
                     icon = Icons.Default.Person,
                     active = uiState.activeSection == MobileSection.ACCOUNT ||
-                        uiState.activeSection == MobileSection.COMPLETED ||
-                        uiState.activeSection == MobileSection.DISTRIBUTORS,
+                        uiState.activeSection == MobileSection.COMPLETED,
                     testTag = "nav_tab_account",
                     onClick = { viewModel.setSection(MobileSection.ACCOUNT) },
                     modifier = Modifier.weight(1f)
@@ -1266,41 +1529,54 @@ private fun BottomNavItem(
     modifier: Modifier = Modifier
 ) {
     val activeColor = AgRoyalBlue
-    val inactiveColor = AgMutedText
+    val inactiveColor = Color(0xFF475569)
     val tint = if (active) activeColor else inactiveColor
 
     Column(
         modifier = modifier
-            .heightIn(min = 58.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .heightIn(min = 60.dp)
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(top = 5.dp, bottom = 5.dp)
+            .padding(top = 6.dp, bottom = 2.dp)
             .testTag(testTag),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(if (active) AgRoyalBlue.copy(alpha = 0.12f) else Color.Transparent)
-                .padding(horizontal = 16.dp, vertical = 5.dp),
-            contentAlignment = Alignment.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = tint,
-                modifier = Modifier.size(21.dp)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (active) AgRoyalBlue.copy(alpha = 0.12f) else Color.Transparent)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = tint,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Text(
+                text = label,
+                color = tint,
+                fontSize = 11.sp,
+                fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         Spacer(modifier = Modifier.height(3.dp))
-        Text(
-            text = label,
-            color = tint,
-            fontSize = 11.sp,
-            fontWeight = if (active) FontWeight.ExtraBold else FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+        // Bottom Blue Active Indicator Pill matching the sample image
+        Box(
+            modifier = Modifier
+                .width(42.dp)
+                .height(3.5.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(if (active) AgRoyalBlue else Color.Transparent)
         )
     }
 }

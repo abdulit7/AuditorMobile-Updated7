@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -32,6 +35,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.VerifiedUser
@@ -51,12 +55,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -110,6 +118,72 @@ val AgWarning = Color(0xFFB45309)
 val AgWarningDark = Color(0xFF92400E)
 val AgWarningBg = Color(0xFFFEF3C7)
 val AgAmberPending = AgWarning
+val AgPurple = Color(0xFF7C3AED)
+val AgPurpleDark = Color(0xFF5B21B6)
+val AgPurpleBg = Color(0xFFF3E8FF)
+
+// Pro-Max Gradient Brushes matching the AuditGrid Dashboard Design
+val AgHeroGradient = Brush.linearGradient(
+    colors = listOf(
+        Color(0xFF061B3A),
+        Color(0xFF0C2E63),
+        Color(0xFF154596)
+    ),
+    start = Offset(0f, 0f),
+    end = Offset(900f, 500f)
+)
+
+val AgSectionHeaderGradient = Brush.horizontalGradient(
+    colors = listOf(
+        Color(0xFF0A2654),
+        Color(0xFF15428C),
+        Color(0xFF1B52A8)
+    )
+)
+
+val AgStartAuditGradient = Brush.verticalGradient(
+    colors = listOf(
+        Color(0xFF286EF0),
+        Color(0xFF1344AE)
+    )
+)
+
+val AgViewDutiesGradient = Brush.verticalGradient(
+    colors = listOf(
+        Color(0xFF26C968),
+        Color(0xFF0E9647)
+    )
+)
+
+val AgSyncPurpleGradient = Brush.verticalGradient(
+    colors = listOf(
+        Color(0xFF9F42F5),
+        Color(0xFF6A1FC2)
+    )
+)
+
+val AgLastSyncPillGradient = Brush.horizontalGradient(
+    colors = listOf(
+        Color(0xFF90BDF9),
+        Color(0xFF72A5F2)
+    )
+)
+
+val AgKpiBlueBrush = Brush.linearGradient(
+    colors = listOf(Color(0xFFEAF2FF), Color(0xFFDCE9FF))
+)
+
+val AgKpiGreenBrush = Brush.linearGradient(
+    colors = listOf(Color(0xFFE7FBF0), Color(0xFFD2F5E3))
+)
+
+val AgKpiAmberBrush = Brush.linearGradient(
+    colors = listOf(Color(0xFFFFF4E4), Color(0xFFFFE6C8))
+)
+
+val AgKpiPurpleBrush = Brush.linearGradient(
+    colors = listOf(Color(0xFFF4ECFF), Color(0xFFE7D7FF))
+)
 
 private val AuditGridColorScheme = lightColorScheme(
     primary = AgPrimary,
@@ -142,11 +216,11 @@ fun AuditGridTheme(content: @Composable () -> Unit) {
 }
 
 /**
- * Emerald Green Shield with White Checkmark matching the AuditGrid top bar logo.
+ * Glossy 3D Emerald Green Shield with Mint Rim & White Checkmark matching the AuditGrid mockup.
  */
 @Composable
 fun AuditGridShieldLogo(
-    size: Dp = 32.dp,
+    size: Dp = 36.dp,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -156,30 +230,58 @@ fun AuditGridShieldLogo(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = this.size.width
             val h = this.size.height
-            val shieldPath = Path().apply {
-                moveTo(w * 0.5f, h * 0.06f)
-                lineTo(w * 0.90f, h * 0.22f)
-                lineTo(w * 0.90f, h * 0.52f)
+
+            val outerShield = Path().apply {
+                moveTo(w * 0.5f, h * 0.03f)
+                lineTo(w * 0.93f, h * 0.20f)
+                lineTo(w * 0.93f, h * 0.53f)
                 cubicTo(
-                    w * 0.90f, h * 0.76f,
-                    w * 0.68f, h * 0.91f,
-                    w * 0.5f, h * 0.96f
+                    w * 0.93f, h * 0.78f,
+                    w * 0.70f, h * 0.93f,
+                    w * 0.5f, h * 0.98f
                 )
                 cubicTo(
-                    w * 0.32f, h * 0.91f,
-                    w * 0.10f, h * 0.76f,
-                    w * 0.10f, h * 0.52f
+                    w * 0.30f, h * 0.93f,
+                    w * 0.07f, h * 0.78f,
+                    w * 0.07f, h * 0.53f
                 )
-                lineTo(w * 0.10f, h * 0.22f)
+                lineTo(w * 0.07f, h * 0.20f)
                 close()
             }
             drawPath(
-                path = shieldPath,
-                color = AgShieldGreen
+                path = outerShield,
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF6EE7B7), Color(0xFF10B981))
+                )
             )
+
+            val innerShield = Path().apply {
+                moveTo(w * 0.5f, h * 0.11f)
+                lineTo(w * 0.85f, h * 0.25f)
+                lineTo(w * 0.85f, h * 0.52f)
+                cubicTo(
+                    w * 0.85f, h * 0.74f,
+                    w * 0.66f, h * 0.87f,
+                    w * 0.5f, h * 0.91f
+                )
+                cubicTo(
+                    w * 0.34f, h * 0.87f,
+                    w * 0.15f, h * 0.74f,
+                    w * 0.15f, h * 0.52f
+                )
+                lineTo(w * 0.15f, h * 0.25f)
+                close()
+            }
+            drawPath(
+                path = innerShield,
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF10B981), Color(0xFF047857))
+                )
+            )
+
             // White checkmark inside shield
             val checkPath = Path().apply {
-                moveTo(w * 0.32f, h * 0.52f)
+                moveTo(w * 0.33f, h * 0.52f)
                 lineTo(w * 0.45f, h * 0.65f)
                 lineTo(w * 0.70f, h * 0.38f)
             }
@@ -187,7 +289,7 @@ fun AuditGridShieldLogo(
                 path = checkPath,
                 color = Color.White,
                 style = Stroke(
-                    width = w * 0.10f,
+                    width = w * 0.105f,
                     cap = StrokeCap.Round,
                     join = StrokeJoin.Round
                 )
@@ -820,5 +922,307 @@ fun StructuredMetaGridItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+/**
+ * Elevated Section Card with a deep Navy-to-Royal-Blue gradient top header bar,
+ * matching the "Today's Visit Schedule", "Audit Progress", and "Assigned Areas" cards.
+ */
+@Composable
+fun ProSectionCard(
+    title: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onActionClick: (() -> Unit)? = null,
+    contentPadding: PaddingValues = PaddingValues(14.dp),
+    content: @Composable () -> Unit
+) {
+    Surface(
+        color = AgCardWhite,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, Color(0xFFDCE6F5)),
+        shadowElevation = 3.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Navy-Royal Gradient Top Header Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AgSectionHeaderGradient)
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (!actionLabel.isNullOrBlank()) {
+                    Surface(
+                        color = Color.White.copy(alpha = 0.14f),
+                        shape = RoundedCornerShape(999.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .then(
+                                if (onActionClick != null) Modifier.clickable(onClick = onActionClick)
+                                else Modifier
+                            )
+                    ) {
+                        Text(
+                            text = actionLabel,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Card Body
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(contentPadding)
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+/**
+ * Pastel Gradient KPI Card with soft wave accent, rounded icon badge, bold count, label, and chevron pill.
+ */
+@Composable
+fun ProKpiPastelCard(
+    countText: String,
+    label: String,
+    icon: ImageVector,
+    iconBgColor: Color,
+    cardBrush: Brush,
+    borderColor: Color,
+    chevronBgColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Color.Transparent,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, borderColor),
+        shadowElevation = 2.dp,
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(cardBrush)
+                .padding(horizontal = 12.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .shadow(2.dp, CircleShape)
+                            .background(iconBgColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(
+                            text = countText,
+                            color = AgForeground,
+                            fontSize = 21.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            lineHeight = 23.sp
+                        )
+                        Text(
+                            text = label,
+                            color = Color(0xFF1E293B),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(chevronBgColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Open $label",
+                        tint = iconBgColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Vibrant Gradient Quick Action Tile matching the bottom 3 buttons ("Start Audit", "View Duties", "Sync Now").
+ */
+@Composable
+fun ProGradientActionTile(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    brush: Brush,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Surface(
+        color = Color.Transparent,
+        shape = RoundedCornerShape(16.dp),
+        shadowElevation = 4.dp,
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .background(brush)
+                .padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = subtitle,
+                color = Color.White.copy(alpha = 0.88f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/**
+ * Circular Stylized Auditor Portrait Avatar for the Top Hero Header.
+ */
+@Composable
+fun ProAuditorAvatar(
+    name: String,
+    size: Dp = 52.dp,
+    modifier: Modifier = Modifier
+) {
+    val initials = remember(name) {
+        val parts = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        when {
+            parts.size >= 2 -> "${parts[0].first()}${parts[1].first()}".uppercase(Locale.US)
+            parts.size == 1 -> parts[0].take(2).uppercase(Locale.US)
+            else -> "FA"
+        }
+    }
+    Box(
+        modifier = modifier
+            .size(size)
+            .shadow(4.dp, CircleShape)
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(Color(0xFFE0ECFF), Color(0xFFB9D5FF))
+                ),
+                shape = CircleShape
+            )
+            .border(2.dp, Color.White.copy(alpha = 0.85f), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        // Stylized portrait silhouette + initials badge
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = this.size.width
+            val h = this.size.height
+            // Shoulders arc
+            drawArc(
+                color = Color(0xFF1D4ED8).copy(alpha = 0.18f),
+                startAngle = 180f,
+                sweepAngle = 180f,
+                useCenter = true,
+                topLeft = Offset(w * 0.15f, h * 0.56f),
+                size = androidx.compose.ui.geometry.Size(w * 0.70f, h * 0.55f)
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = Color(0xFF0E2F66),
+                modifier = Modifier.size(size * 0.44f)
+            )
+            Text(
+                text = initials,
+                color = Color(0xFF0E2F66),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.ExtraBold,
+                lineHeight = 10.sp
+            )
+        }
     }
 }

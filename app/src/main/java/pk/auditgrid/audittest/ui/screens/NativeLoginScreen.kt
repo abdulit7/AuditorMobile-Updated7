@@ -100,13 +100,16 @@ fun NativeLoginScreen(
         ) {
             // Brand Header matching AuditGrid Mockup
             Surface(
-                color = AgNavyHeader,
-                shape = RoundedCornerShape(18.dp),
-                shadowElevation = 2.dp,
+                color = Color.Transparent,
+                shape = RoundedCornerShape(22.dp),
+                shadowElevation = 6.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(vertical = 22.dp, horizontal = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AgHeroGradient)
+                        .padding(vertical = 24.dp, horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -114,13 +117,21 @@ fun NativeLoginScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        AuditGridShieldLogo(size = 38.dp)
-                        Text(
-                            text = "AuditGrid",
-                            color = Color.White,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                        AuditGridShieldLogo(size = 42.dp)
+                        Column {
+                            Text(
+                                text = "AuditGrid",
+                                color = Color.White,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                text = "Audit • Track • Grow",
+                                color = Color(0xFFBDD4F7),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                     Surface(
                         color = Color.White.copy(alpha = 0.14f),

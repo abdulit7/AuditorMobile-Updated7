@@ -28,7 +28,7 @@ import pk.auditgrid.audittest.util.*
 import java.util.UUID
 
 enum class MobileSection {
-    AUDIT, DUTIES, COMPLETED, PLANS, CITIES, TERRITORIES, LOCATIONS, SUBLOCATIONS, SHOPS, DISTRIBUTORS, ACCOUNT
+    DASHBOARD, AUDIT, DUTIES, COMPLETED, PLANS, CITIES, TERRITORIES, LOCATIONS, SUBLOCATIONS, SHOPS, DISTRIBUTORS, ACCOUNT
 }
 
 data class LiveSharingState(
@@ -47,7 +47,7 @@ data class AppUiState(
     val lastSyncedAt: String = "",
     val plansRefreshVersion: Int = 0,
     val liveSharing: LiveSharingState = LiveSharingState(),
-    val activeSection: MobileSection = MobileSection.AUDIT,
+    val activeSection: MobileSection = MobileSection.DASHBOARD,
     val cities: List<City> = emptyList(),
     val territories: List<Territory> = emptyList(),
     val locations: List<LocationItem> = emptyList(),

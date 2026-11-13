@@ -200,14 +200,17 @@ fun MobilePlansScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(
-                    color = AgDutyBannerNavy,
+                    color = Color.Transparent,
                     contentColor = Color.White,
-                    shape = RoundedCornerShape(16.dp),
-                    shadowElevation = 2.dp,
+                    shape = RoundedCornerShape(18.dp),
+                    shadowElevation = 4.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(AgSectionHeaderGradient)
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -218,8 +221,8 @@ fun MobilePlansScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(10.dp)),
+                                    .size(44.dp)
+                                    .background(Color.White.copy(alpha = 0.16f), RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -235,14 +238,14 @@ fun MobilePlansScreen(
                             ) {
                                 Text(
                                     text = "Daily Audit Plans",
-                                    fontSize = 15.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color.White
                                 )
                                 Text(
                                     text = "${distributors.size} Distributors • ${subLocations.size} Sub-Localities • ${shops.size} Shops",
                                     fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.85f)
+                                    color = Color(0xFFDBEAFE)
                                 )
                             }
                         }

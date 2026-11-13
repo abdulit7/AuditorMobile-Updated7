@@ -289,15 +289,18 @@ fun DistributorAuditFormScreen(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // 1. Hero Card: "Mobile Field Audit Forms"
+            // 1. Hero Card: "Mobile Field Audit Forms" (Gradient Pro Banner)
             Surface(
-                color = AgRoyalBlue,
-                shape = RoundedCornerShape(16.dp),
-                shadowElevation = 2.dp,
+                color = Color.Transparent,
+                shape = RoundedCornerShape(18.dp),
+                shadowElevation = 4.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AgSectionHeaderGradient)
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -308,8 +311,8 @@ fun DistributorAuditFormScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(42.dp)
-                                .background(Color.White.copy(alpha = 0.16f), RoundedCornerShape(11.dp)),
+                                .size(44.dp)
+                                .background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -326,12 +329,12 @@ fun DistributorAuditFormScreen(
                             Text(
                                 text = "Mobile Field Audit Forms",
                                 color = Color.White,
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
                             Text(
-                                text = "Select a synced form to continue",
-                                color = Color.White.copy(alpha = 0.88f),
+                                text = "Select a synced form to begin field inspection",
+                                color = Color(0xFFDBEAFE),
                                 fontSize = 12.sp
                             )
                         }
@@ -340,7 +343,7 @@ fun DistributorAuditFormScreen(
                     if (onSyncFormsNow != null) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
-                            color = Color.White.copy(alpha = 0.12f),
+                            color = Color.White.copy(alpha = 0.15f),
                             shape = RoundedCornerShape(999.dp),
                             border = BorderStroke(1.2.dp, Color.White.copy(alpha = 0.80f)),
                             modifier = Modifier
@@ -393,75 +396,13 @@ fun DistributorAuditFormScreen(
                 }
             )
 
-            // 2. Card: "Your Assigned Duty Scope"
-            Surface(
-                color = AgCardWhite,
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, AgBorder),
-                shadowElevation = 1.dp,
-                modifier = Modifier.fillMaxWidth()
+            // 2. ProSectionCard: "Assigned Duty Scope" with Pastel KPI Tiles
+            ProSectionCard(
+                title = "Assigned Duty Scope",
+                icon = Icons.Default.GpsFixed,
+                actionLabel = "SYNCED ✓"
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Header row: Target icon + Title left, Synced pill right
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .background(AgSoftBlueBg, RoundedCornerShape(10.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.GpsFixed,
-                                    contentDescription = null,
-                                    tint = AgRoyalBlue,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Text(
-                                text = "Assigned Duty Scope",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = AgForeground
-                            )
-                        }
-                        Surface(
-                            color = Color(0xFFD1FAE5),
-                            shape = RoundedCornerShape(999.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = Color(0xFF047857),
-                                    modifier = Modifier.size(11.dp)
-                                )
-                                Text(
-                                    text = "SYNCED",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF047857)
-                                )
-                            }
-                        }
-                    }
-
-                    // Towns Progressive Disclosure Chip Group
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     val townChips = remember(townsDisplay) {
                         townsDisplay.split("•", ",", "\n")
                             .map { it.trim() }
@@ -493,113 +434,32 @@ fun DistributorAuditFormScreen(
                         )
                     }
 
-                    HorizontalDivider(color = AgLightBorder)
-
-                    // Bottom 2-column structured KPI stat tiles: Localities | Shops
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Surface(
-                            color = AgFormBg,
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, AgBorder),
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable(enabled = onOpenLocalities != null) { onOpenLocalities?.invoke() }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .background(AgSoftBlueBg, RoundedCornerShape(8.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Apartment,
-                                        contentDescription = null,
-                                        tint = AgRoyalBlue,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "${scopedTerritories.size}",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = AgForeground
-                                    )
-                                    Text(
-                                        text = "Localities",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = AgMutedText
-                                    )
-                                }
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    tint = AgMutedText,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-
-                        Surface(
-                            color = AgFormBg,
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, AgBorder),
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable(enabled = onOpenShops != null) { onOpenShops?.invoke() }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .background(AgAccentGreenBg, RoundedCornerShape(8.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Groups,
-                                        contentDescription = null,
-                                        tint = AgAccentGreenDark,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "${scopedShops.size}",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = AgForeground
-                                    )
-                                    Text(
-                                        text = "Retail Shops",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = AgMutedText
-                                    )
-                                }
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    tint = AgMutedText,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
+                        ProKpiPastelCard(
+                            countText = scopedTerritories.size.toString(),
+                            label = "Localities",
+                            icon = Icons.Default.Apartment,
+                            iconBgColor = Color(0xFF1A5CE5),
+                            cardBrush = AgKpiBlueBrush,
+                            borderColor = Color(0xFFC7DCFF),
+                            chevronBgColor = Color(0xFFCFE1FF),
+                            onClick = { onOpenLocalities?.invoke() },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ProKpiPastelCard(
+                            countText = scopedShops.size.toString(),
+                            label = "Retail Shops",
+                            icon = Icons.Default.Storefront,
+                            iconBgColor = Color(0xFF7C3AED),
+                            cardBrush = AgKpiPurpleBrush,
+                            borderColor = Color(0xFFDCC7FF),
+                            chevronBgColor = Color(0xFFE2D0FF),
+                            onClick = { onOpenShops?.invoke() },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
