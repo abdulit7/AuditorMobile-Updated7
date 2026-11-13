@@ -1,6 +1,7 @@
 package pk.auditgrid.audittest.ui.theme
 
 import android.graphics.BitmapFactory
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -11,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,31 +25,50 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,6 +118,7 @@ val AgAccentGreenBg = Color(0xFFD1FAE5)
 val AgGreenSuccess = AgAccentGreen
 val AgBackground = Color(0xFFF4F7FB)
 val AgFormBg = Color(0xFFF8FAFC)
+val AgInputFill = AgFormBg
 val AgSoftBlueBg = Color(0xFFE0ECFF)
 val AgIceBoxBg = Color(0xFFF0F6FF)
 val AgSoftBlueBorder = Color(0xFFD5E3F7)
@@ -1223,6 +1245,583 @@ fun ProAuditorAvatar(
                 fontWeight = FontWeight.ExtraBold,
                 lineHeight = 10.sp
             )
+        }
+    }
+}
+
+// ============================================================================
+// PROFESSIONAL AUDIT FORM DESIGN SYSTEM (Slate / Royal Blue / Semantic Chips)
+// ============================================================================
+
+val AuditSlateBackground = Color(0xFFF1F5F9)
+val AuditCardSurface = Color(0xFFFFFFFF)
+val AuditPrimaryBlue = Color(0xFF2563EB)
+val AuditCompliantGreen = Color(0xFF16A34A)
+val AuditNonCompliantRed = Color(0xFFDC2626)
+val AuditWarningAmber = Color(0xFFD97706)
+val AuditTextPrimary = Color(0xFF0F172A)
+val AuditTextSecondary = Color(0xFF64748B)
+val AuditBorderLight = Color(0xFFE2E8F0)
+
+@Composable
+fun AuditFormTopBar(
+    title: String,
+    subtitle: String,
+    progress: Float,
+    gpsVerified: Boolean,
+    onBackClick: () -> Unit,
+    gpsLabelOverride: String? = null,
+    onRefreshGps: (() -> Unit)? = null,
+    trailingAction: (@Composable () -> Unit)? = null
+) {
+    val clampedProgress = progress.coerceIn(0f, 1f)
+    Surface(
+        color = AuditCardSurface,
+        shadowElevation = 3.dp,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = AuditTextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = AuditTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AuditTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                // GPS Status Badge
+                Surface(
+                    color = if (gpsVerified) AuditCompliantGreen.copy(alpha = 0.12f) else AuditWarningAmber.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(
+                        1.dp,
+                        if (gpsVerified) AuditCompliantGreen.copy(alpha = 0.3f) else AuditWarningAmber.copy(alpha = 0.3f)
+                    ),
+                    modifier = if (onRefreshGps != null) {
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onRefreshGps() }
+                    } else Modifier
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MyLocation,
+                            contentDescription = null,
+                            tint = if (gpsVerified) AuditCompliantGreen else AuditWarningAmber,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = gpsLabelOverride ?: if (gpsVerified) "GPS Locked" else "Locating...",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (gpsVerified) AuditCompliantGreen else AuditWarningAmber
+                        )
+                    }
+                }
+                if (trailingAction != null) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    trailingAction()
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Completion Progress Bar
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                LinearProgressIndicator(
+                    progress = { clampedProgress },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(CircleShape),
+                    color = if (clampedProgress >= 1f) AuditCompliantGreen else AuditPrimaryBlue,
+                    trackColor = AuditBorderLight
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "${(clampedProgress * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (clampedProgress >= 1f) AuditCompliantGreen else AuditPrimaryBlue
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AuditSectionCard(
+    title: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    badgeText: String? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = AuditCardSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, AuditBorderLight)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .background(AuditPrimaryBlue.copy(alpha = 0.10f), RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = AuditPrimaryBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = AuditTextPrimary
+                    )
+                }
+                if (!badgeText.isNullOrBlank()) {
+                    CodeBadge(badgeText, bg = AgSoftBlueBg, fg = AuditPrimaryBlue)
+                }
+            }
+            Spacer(modifier = Modifier.height(14.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+fun AuditYesNoRow(
+    label: String,
+    subtitle: String? = null,
+    value: Boolean?,
+    onValueChange: (Boolean) -> Unit,
+    yesText: String = "YES",
+    noText: String = "NO"
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = AuditTextPrimary
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AuditTextSecondary
+                )
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SegmentedTogglePill(
+                text = yesText,
+                isSelected = value == true,
+                activeColor = AuditCompliantGreen,
+                onClick = { onValueChange(true) }
+            )
+            SegmentedTogglePill(
+                text = noText,
+                isSelected = value == false,
+                activeColor = AuditNonCompliantRed,
+                onClick = { onValueChange(false) }
+            )
+        }
+    }
+}
+
+@Composable
+fun SegmentedTogglePill(
+    text: String,
+    isSelected: Boolean,
+    activeColor: Color,
+    onClick: () -> Unit
+) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) activeColor else Color.Transparent,
+        label = "pillBg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) Color.White else AuditTextSecondary,
+        label = "pillContent"
+    )
+
+    Surface(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick),
+        color = bgColor,
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, if (isSelected) activeColor else AuditBorderLight)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = contentColor
+        )
+    }
+}
+
+@Composable
+fun AuditNumberStepperRow(
+    label: String,
+    subtitle: String? = null,
+    value: Int,
+    onValueChange: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = AuditTextPrimary
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AuditTextSecondary
+                )
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            FilledTonalIconButton(
+                onClick = { if (value > 0) onValueChange(value - 1) },
+                modifier = Modifier.size(38.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = AuditPrimaryBlue.copy(alpha = 0.10f),
+                    contentColor = AuditPrimaryBlue
+                )
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(18.dp))
+            }
+
+            OutlinedTextField(
+                value = value.toString(),
+                onValueChange = { newText ->
+                    val filtered = newText.filter { it.isDigit() }
+                    onValueChange(filtered.toIntOrNull() ?: 0)
+                },
+                modifier = Modifier.width(72.dp),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(10.dp)
+            )
+
+            FilledTonalIconButton(
+                onClick = { onValueChange(value + 1) },
+                modifier = Modifier.size(38.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = AuditPrimaryBlue.copy(alpha = 0.10f),
+                    contentColor = AuditPrimaryBlue
+                )
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AuditFilterChipsRow(
+    label: String,
+    subtitle: String? = null,
+    options: List<String>,
+    selectedOption: String,
+    onOptionSelected: (String) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = AuditTextPrimary
+        )
+        if (!subtitle.isNullOrBlank()) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = AuditTextSecondary
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            options.forEach { item ->
+                val isSelected = selectedOption.equals(item, ignoreCase = true)
+                val lower = item.lowercase(Locale.US)
+                val semanticColor = when {
+                    lower.contains("good") || lower.contains("excellent") || lower == "yes" || lower == "regular" || lower == "open" || lower.contains("proper") ->
+                        AuditCompliantGreen
+                    lower.contains("avg") || lower.contains("average") || lower.contains("fair") || lower.contains("near") || lower.contains("not regular") || lower.contains("irregular") ->
+                        AuditWarningAmber
+                    lower.contains("poor") || lower.contains("bad") || lower.contains("damage") || lower == "no" || lower == "never" || lower == "close" || lower.contains("none") ->
+                        AuditNonCompliantRed
+                    else -> AuditPrimaryBlue
+                }
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onOptionSelected(item) },
+                    label = {
+                        Text(
+                            text = item,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 12.sp
+                        )
+                    },
+                    leadingIcon = if (isSelected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = semanticColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    } else null,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = semanticColor.copy(alpha = 0.15f),
+                        selectedLabelColor = semanticColor
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        borderColor = AuditBorderLight,
+                        selectedBorderColor = semanticColor.copy(alpha = 0.5f)
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AuditPhotoCaptureBlock(
+    photoCount: Int,
+    maxPhotos: Int,
+    required: Boolean,
+    subtitle: String = "Capture clear front-facing shelf & batch code photos.",
+    onTakePhoto: () -> Unit,
+    onPickGallery: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Add Photo Action Card (88.dp tactile tile)
+        Surface(
+            modifier = Modifier
+                .size(88.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(enabled = photoCount < maxPhotos, onClick = onTakePhoto),
+            color = AuditPrimaryBlue.copy(alpha = 0.08f),
+            border = BorderStroke(1.dp, AuditPrimaryBlue.copy(alpha = 0.3f)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AddAPhoto,
+                    contentDescription = "Add Photo",
+                    tint = AuditPrimaryBlue,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Add Photo",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AuditPrimaryBlue
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "$photoCount / $maxPhotos Photo(s) Attached",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AuditTextPrimary
+                )
+                if (required) {
+                    CodeBadge("Required", bg = AgWarningBg, fg = AuditWarningAmber)
+                }
+            }
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = AuditTextSecondary
+            )
+            OutlinedButton(
+                onClick = onPickGallery,
+                enabled = photoCount < maxPhotos,
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, AuditBorderLight),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.heightIn(min = 34.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PhotoLibrary,
+                    contentDescription = "Choose from Gallery",
+                    tint = AuditPrimaryBlue,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Upload from Gallery",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AuditTextPrimary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AuditStickyBottomBar(
+    onSaveDraft: () -> Unit,
+    onSubmit: () -> Unit,
+    isSubmitEnabled: Boolean,
+    saveDraftText: String = "Save Draft",
+    submitText: String = "Submit Audit",
+    saveDraftTestTag: String? = null,
+    submitTestTag: String? = null
+) {
+    Surface(
+        color = AuditCardSurface,
+        shadowElevation = 8.dp,
+        shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+        border = BorderStroke(1.dp, AuditBorderLight)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onSaveDraft,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .then(if (saveDraftTestTag != null) Modifier.testTag(saveDraftTestTag) else Modifier),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, AuditBorderLight)
+            ) {
+                Text(saveDraftText, fontWeight = FontWeight.SemiBold, color = AuditTextPrimary, fontSize = 13.sp)
+            }
+
+            Button(
+                onClick = onSubmit,
+                enabled = isSubmitEnabled,
+                modifier = Modifier
+                    .weight(1.4f)
+                    .height(48.dp)
+                    .then(if (submitTestTag != null) Modifier.testTag(submitTestTag) else Modifier),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AuditPrimaryBlue)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CloudUpload,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(submitText, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
         }
     }
 }

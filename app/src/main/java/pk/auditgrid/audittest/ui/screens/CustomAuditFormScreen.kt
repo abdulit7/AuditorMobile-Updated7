@@ -11,15 +11,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -302,153 +306,83 @@ fun CustomAuditFormScreen(
             (it.label + " " + it.sub).contains(search, ignoreCase = true)
     }.take(40)
 
+    val customChecks = buildList {
+        add(targetId.isNotBlank())
+        fields.forEach { f ->
+            val v = answers[f.key]
+            add(v != null && v.toString().isNotBlank())
+        }
+        if (photosOn && settings.requirePhoto) {
+            add(photos.isNotEmpty())
+        }
+    }
+    val customProgress = if (customChecks.isNotEmpty()) {
+        customChecks.count { it }.toFloat() / customChecks.size.toFloat()
+    } else 0f
+
     Surface(
-        color = AgCardWhite,
+        color = AuditSlateBackground,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, AgBorder),
+        border = BorderStroke(1.dp, AuditBorderLight),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AgPrimary)
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = form.title,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = form.code,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
+            AuditFormTopBar(
+                title = form.title,
+                subtitle = chosen?.let { "${it.label} (${it.sub}) · ${form.code}" } ?: "${form.code} · Select $targetLabel",
+                progress = customProgress,
+                gpsVerified = effectiveGpsPos != null,
+                gpsLabelOverride = when {
+                    gpsFetching -> "Locating..."
+                    effectiveGpsPos != null -> "GPS Locked (±${effectiveGpsPos.accuracy.toInt()}m)"
+                    else -> "Tap for GPS"
+                },
+                onBackClick = onBack,
+                onRefreshGps = { scope.launch { prefetchGpsInBackground() } }
+            )
 
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Background GPS Pre-Fetch Status Banner
-                Surface(
-                    color = when {
-                        effectiveGpsPos != null && effectiveGpsPos.accuracy <= settings.maxAccuracyMeters -> AgAccentGreenBg
-                        effectiveGpsPos != null -> AgWarningBg
-                        else -> AgSoftBlueBg
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(
-                        1.dp,
-                        when {
-                            effectiveGpsPos != null && effectiveGpsPos.accuracy <= settings.maxAccuracyMeters -> AgAccentGreen.copy(alpha = 0.4f)
-                            effectiveGpsPos != null -> AgWarning.copy(alpha = 0.4f)
-                            else -> AgSoftBlueBorder
-                        }
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+                // SECTION 1: Target Identification
+                AuditSectionCard(
+                    title = "1. $targetLabel Identification",
+                    icon = Icons.Default.QrCodeScanner,
+                    badgeText = chosen?.sub ?: form.code
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
+                    if (assignedCities.isNotEmpty() || assignedTerritories.isNotEmpty()) {
+                        Surface(
+                            color = AgFormBg,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, AuditBorderLight),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.MyLocation,
-                                contentDescription = null,
-                                tint = if (effectiveGpsPos != null) AgAccentGreenDark else AgRoyalBlue,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = when {
-                                        effectiveGpsPos != null -> "GPS Ready in Background (±${effectiveGpsPos.accuracy.toInt()}m)"
-                                        gpsFetching -> "Pre-fetching GPS location in background…"
-                                        else -> gpsProblem ?: "Warming up GPS sensor…"
-                                    },
-                                    color = if (effectiveGpsPos != null) AgAccentGreenDark else AgForeground,
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                ExpandableTextWithMore(
+                                    text = "Assigned Towns (${assignedCities.size}): ${assignedCities.joinToString(", ") { it.name }}",
+                                    maxLinesCollapsed = 1,
+                                    thresholdChars = 48,
+                                    textColor = AuditTextPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
-                                if (effectiveGpsPos != null) {
-                                    Text(
-                                        text = "${String.format("%.5f", effectiveGpsPos.lat)}, ${String.format("%.5f", effectiveGpsPos.lng)}",
-                                        color = AgMutedText,
-                                        fontSize = 10.sp,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
+                                ExpandableTextWithMore(
+                                    text = "Assigned Localities (${assignedTerritories.size}): ${assignedTerritories.joinToString(", ") { "${it.name} (${it.code})" }}",
+                                    maxLinesCollapsed = 1,
+                                    thresholdChars = 48,
+                                    textColor = AuditPrimaryBlue,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
-                        TextButton(
-                            onClick = { scope.launch { prefetchGpsInBackground() } },
-                            enabled = !gpsFetching
-                        ) {
-                            Text(if (gpsFetching) "Locking…" else "Refresh GPS", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
-                }
 
-                // Assigned City & Territory Filter Banner
-                if (assignedCities.isNotEmpty() || assignedTerritories.isNotEmpty()) {
-                    Surface(
-                        color = AgFormBg,
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, AgBorderHairline),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            ExpandableTextWithMore(
-                                text = "Assigned Towns (${assignedCities.size}): ${assignedCities.joinToString(", ") { it.name }}",
-                                maxLinesCollapsed = 1,
-                                thresholdChars = 48,
-                                textColor = AgDarkText,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            ExpandableTextWithMore(
-                                text = "Assigned Localities (${assignedTerritories.size}): ${assignedTerritories.joinToString(", ") { "${it.name} (${it.code})" }}",
-                                maxLinesCollapsed = 1,
-                                thresholdChars = 48,
-                                textColor = AgRoyalBlue,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-
-                // Target Selection
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = "$targetLabel *",
-                        color = AgForeground,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                     if (!presetTargetId.isNullOrBlank() && chosen != null) {
                         Box(
                             modifier = Modifier
@@ -457,10 +391,10 @@ fun CustomAuditFormScreen(
                                 .padding(horizontal = 12.dp, vertical = 14.dp)
                         ) {
                             Text(
-                                text = chosen.label,
-                                color = AgPrimary,
+                                text = "${chosen.label} (${chosen.sub})",
+                                color = AuditTextPrimary,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     } else {
@@ -473,21 +407,39 @@ fun CustomAuditFormScreen(
                         OutlinedTextField(
                             value = search,
                             onValueChange = { search = it },
-                            placeholder = { Text("Search ${targetLabel.lowercase()}…", fontSize = 13.sp) },
+                            label = { Text("Select or Search $targetLabel *") },
+                            placeholder = { Text("Scan or type ${targetLabel.lowercase()} name or code…", fontSize = 13.sp) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
+                            trailingIcon = {
+                                FilledIconButton(
+                                    onClick = {},
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = AuditPrimaryBlue.copy(alpha = 0.12f),
+                                        contentColor = AuditPrimaryBlue
+                                    ),
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCodeScanner,
+                                        contentDescription = "Search Target",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, AgBorder),
+                            border = BorderStroke(1.dp, AuditBorderLight),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.animateContentSize()) {
                                 if (shown.isEmpty()) {
                                     Text(
                                         text = "Nothing in your assigned areas matches.",
-                                        color = AgMutedText,
+                                        color = AuditTextSecondary,
                                         fontSize = 12.sp,
                                         modifier = Modifier.padding(12.dp)
                                     )
@@ -497,7 +449,7 @@ fun CustomAuditFormScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .background(if (isSelected) AgSelectedCardBg else AgCardWhite)
+                                                .background(if (isSelected) AgSelectedCardBg else AuditCardSurface)
                                                 .clickable { targetId = o.id }
                                                 .padding(horizontal = 12.dp, vertical = 12.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -505,7 +457,7 @@ fun CustomAuditFormScreen(
                                         ) {
                                             Text(
                                                 text = o.label,
-                                                color = AgDarkText,
+                                                color = AuditTextPrimary,
                                                 fontSize = 13.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                                 maxLines = 1,
@@ -515,88 +467,90 @@ fun CustomAuditFormScreen(
                                             Spacer(Modifier.width(8.dp))
                                             Text(
                                                 text = o.sub,
-                                                color = AgMutedText,
+                                                color = AuditTextSecondary,
                                                 fontSize = 11.sp,
                                                 fontFamily = FontFamily.Monospace
                                             )
                                         }
                                         if (idx < visibleTargets.lastIndex) {
-                                            HorizontalDivider(color = AgLightBorder)
+                                            HorizontalDivider(color = AuditBorderLight)
                                         }
                                     }
                                 }
                             }
                         }
-                        ShowMoreListToggle(
-                            totalCount = shown.size,
-                            collapsedLimit = 5,
-                            expanded = showAllCustomTargets,
-                            itemLabel = targetLabel.ifBlank { "targets" },
-                            onToggle = { showAllCustomTargets = !showAllCustomTargets }
-                        )
+                        if (shown.size > 5) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowMoreListToggle(
+                                totalCount = shown.size,
+                                collapsedLimit = 5,
+                                expanded = showAllCustomTargets,
+                                itemLabel = targetLabel.ifBlank { "targets" },
+                                onToggle = { showAllCustomTargets = !showAllCustomTargets }
+                            )
+                        }
                     }
                 }
 
-                // Dynamic Fields
-                fields.forEach { f ->
-                    CustomFieldInput(
-                        field = f,
-                        value = answers[f.key],
-                        onChange = { v -> answers = answers + (f.key to v) }
-                    )
-                }
-
-                // Photos
-                if (photosOn) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = if (settings.requirePhoto) "Photos *" else "Photos",
-                            color = AgForeground,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    val granted = ContextCompat.checkSelfPermission(
-                                        context,
-                                        android.Manifest.permission.CAMERA
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                    if (granted) cameraLauncher.launch(null)
-                                    else cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.heightIn(min = 48.dp)
-                            ) {
-                                Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Camera", fontSize = 12.sp)
-                            }
-                            OutlinedButton(
-                                onClick = {
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.heightIn(min = 48.dp)
-                            ) {
-                                Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Gallery", fontSize = 12.sp)
+                // SECTION 2: Dynamic Audit Fields
+                if (fields.isNotEmpty()) {
+                    AuditSectionCard(
+                        title = "2. Audit Checklist & Metrics",
+                        icon = Icons.Default.Verified,
+                        badgeText = "${fields.size} Fields"
+                    ) {
+                        fields.forEachIndexed { idx, f ->
+                            CustomFieldInput(
+                                field = f,
+                                value = answers[f.key],
+                                onChange = { v -> answers = answers + (f.key to v) }
+                            )
+                            if (idx < fields.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    color = AuditBorderLight
+                                )
                             }
                         }
+                    }
+                }
+
+                // SECTION 3: Photo Evidence
+                if (photosOn) {
+                    AuditSectionCard(
+                        title = "${if (fields.isNotEmpty()) "3" else "2"}. Evidence & Photos",
+                        icon = Icons.Default.CameraAlt,
+                        badgeText = "${photos.size}/${settings.maxPhotos}"
+                    ) {
+                        AuditPhotoCaptureBlock(
+                            photoCount = photos.size,
+                            maxPhotos = settings.maxPhotos,
+                            required = settings.requirePhoto,
+                            subtitle = "Capture clear inspection evidence & site photos.",
+                            onTakePhoto = {
+                                val granted = ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.CAMERA
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (granted) cameraLauncher.launch(null)
+                                else cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                            },
+                            onPickGallery = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                        )
+
                         if (photos.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 photos.forEach { p ->
                                     Box(
                                         modifier = Modifier
                                             .size(76.dp)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .border(1.dp, AgBorder, RoundedCornerShape(10.dp))
+                                            .border(1.dp, AuditBorderLight, RoundedCornerShape(10.dp))
                                     ) {
                                         DataUrlImage(
                                             dataUrl = p.url,
@@ -607,14 +561,14 @@ fun CustomAuditFormScreen(
                                             onClick = { photos = photos.filterNot { it.id == p.id } },
                                             modifier = Modifier
                                                 .align(Alignment.TopEnd)
-                                                .size(26.dp)
-                                                .background(Color.Black.copy(alpha = 0.6f))
+                                                .size(24.dp)
+                                                .background(Color.Black.copy(alpha = 0.65f), CircleShape)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
                                                 contentDescription = "Remove photo",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(14.dp)
+                                                modifier = Modifier.size(13.dp)
                                             )
                                         }
                                     }
@@ -622,23 +576,6 @@ fun CustomAuditFormScreen(
                             }
                         }
                     }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MyLocation,
-                        contentDescription = null,
-                        tint = AgMutedText,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = "Your location is checked automatically when you submit.",
-                        color = AgMutedText,
-                        fontSize = 11.sp
-                    )
                 }
 
                 if (error.isNotEmpty()) {
@@ -656,111 +593,143 @@ fun CustomAuditFormScreen(
                         )
                     }
                 }
+            }
 
-                Button(
-                    onClick = {
-                        val problem = validate()
-                        error = problem
-                        if (problem.isNotEmpty()) return@Button
-                        busy = true
-                        scope.launch {
-                            try {
-                                val pos = effectiveGpsPos ?: WarmLocationManager.getFreshWarmPosition() ?: getDevicePosition(context)
-                                val cleanAnswers = mutableMapOf<String, Any?>()
-                                val stringAnswers = mutableMapOf<String, String>()
-                                for (f in fields) {
-                                    val v = answers[f.key]
-                                    if (v == null || v.toString().isBlank()) continue
-                                    val cleanVal: Any = if (f.type == "number") {
-                                        v.toString().toDoubleOrNull() ?: 0.0
-                                    } else {
-                                        v
-                                    }
-                                    cleanAnswers[f.key] = cleanVal
-                                    stringAnswers[f.key] = cleanVal.toString()
-                                }
-                                val (tLat, tLng, tCityId, tTerId) = when (targetType) {
-                                    "subLocation" -> {
-                                        val s = subLocations.find { it.id == targetId }
-                                        listOf(s?.lat ?: 0.0, s?.lng ?: 0.0, s?.cityId ?: "", s?.territoryId ?: "")
-                                    }
-                                    "shop" -> {
-                                        val sh = shops.find { it.id == targetId }
-                                        listOf(sh?.lat ?: 0.0, sh?.lng ?: 0.0, sh?.cityId ?: "", sh?.territoryId ?: "")
-                                    }
-                                    else -> {
-                                        val d = distributors.find { it.id == targetId }
-                                        listOf(d?.lat ?: 0.0, d?.lng ?: 0.0, d?.cityId ?: "", d?.territoryId ?: "")
-                                    }
-                                }
-                                val targetLat = tLat as Double
-                                val targetLng = tLng as Double
-                                val cityIdStr = tCityId as String
-                                val terIdStr = tTerId as String
-                                val distM = if (targetLat != 0.0 || targetLng != 0.0) {
-                                    calculateDistanceMeters(pos.lat, pos.lng, targetLat, targetLng)
-                                } else 0
-                                val matched = !settings.requireGps || (
-                                    distM <= settings.allowedRadiusMeters &&
-                                        pos.accuracy <= settings.maxAccuracyMeters
-                                    )
-                                val cityObj = cities.find { it.id == cityIdStr }
-                                val terObj = territories.find { it.id == terIdStr }
-
-                                val localSubmission = CustomAuditSubmission(
-                                    id = submitKey,
-                                    reportCode = makeReportCode("AUD-CST"),
-                                    formId = form.id,
-                                    formCode = form.code,
-                                    formTitle = form.title,
-                                    targetType = targetType,
-                                    targetId = targetId,
-                                    targetCode = chosen?.sub ?: "",
-                                    targetName = chosen?.label ?: targetId,
-                                    cityName = cityObj?.name ?: "",
-                                    territoryCode = terObj?.code ?: "",
-                                    territoryName = terObj?.name ?: "",
-                                    auditorId = activeAuditor.id,
-                                    auditorName = activeAuditor.fullName,
-                                    submittedDate = currentIsoDate(),
-                                    submittedTime = currentTimePkt(),
-                                    submittedAtISO = currentIsoTimestamp(),
-                                    mobileLat = pos.lat,
-                                    mobileLng = pos.lng,
-                                    mobileAccuracyMeters = pos.accuracy.toInt(),
-                                    distanceMeters = distM,
-                                    allowedRadiusMeters = settings.allowedRadiusMeters,
-                                    locationMatched = matched,
-                                    answers = stringAnswers,
-                                    capturedImages = photos,
-                                    reviewStatus = "Submitted",
-                                    planId = planLink?.planId,
-                                    planItemId = planLink?.itemId
-                                )
-
-                                val saved = onSubmitCustomAudit(localSubmission, cleanAnswers, planLink)
-                                doneSubmission = saved
-                                onSubmitted(saved)
-                            } catch (e: Exception) {
-                                error = e.message ?: "Could not submit. Your entries are kept; try again."
-                            } finally {
-                                busy = false
-                            }
-                        }
-                    },
-                    enabled = !busy,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AgAccentGreen),
+            // Bottom Elevated Submit Bar
+            Surface(
+                color = AuditCardSurface,
+                shadowElevation = 8.dp,
+                shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+                border = BorderStroke(1.dp, AuditBorderLight)
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 52.dp)
-                        .testTag("submit_custom_audit_button")
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = if (busy) "Submitting…" else "Submit audit",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    OutlinedButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, AuditBorderLight)
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.SemiBold, color = AuditTextPrimary)
+                    }
+
+                    Button(
+                        onClick = {
+                            val problem = validate()
+                            error = problem
+                            if (problem.isNotEmpty()) return@Button
+                            busy = true
+                            scope.launch {
+                                try {
+                                    val pos = effectiveGpsPos ?: WarmLocationManager.getFreshWarmPosition() ?: getDevicePosition(context)
+                                    val cleanAnswers = mutableMapOf<String, Any?>()
+                                    val stringAnswers = mutableMapOf<String, String>()
+                                    for (f in fields) {
+                                        val v = answers[f.key]
+                                        if (v == null || v.toString().isBlank()) continue
+                                        val cleanVal: Any = if (f.type == "number") {
+                                            v.toString().toDoubleOrNull() ?: 0.0
+                                        } else {
+                                            v
+                                        }
+                                        cleanAnswers[f.key] = cleanVal
+                                        stringAnswers[f.key] = cleanVal.toString()
+                                    }
+                                    val (tLat, tLng, tCityId, tTerId) = when (targetType) {
+                                        "subLocation" -> {
+                                            val s = subLocations.find { it.id == targetId }
+                                            listOf(s?.lat ?: 0.0, s?.lng ?: 0.0, s?.cityId ?: "", s?.territoryId ?: "")
+                                        }
+                                        "shop" -> {
+                                            val sh = shops.find { it.id == targetId }
+                                            listOf(sh?.lat ?: 0.0, sh?.lng ?: 0.0, sh?.cityId ?: "", sh?.territoryId ?: "")
+                                        }
+                                        else -> {
+                                            val d = distributors.find { it.id == targetId }
+                                            listOf(d?.lat ?: 0.0, d?.lng ?: 0.0, d?.cityId ?: "", d?.territoryId ?: "")
+                                        }
+                                    }
+                                    val targetLat = tLat as Double
+                                    val targetLng = tLng as Double
+                                    val cityIdStr = tCityId as String
+                                    val terIdStr = tTerId as String
+                                    val distM = if (targetLat != 0.0 || targetLng != 0.0) {
+                                        calculateDistanceMeters(pos.lat, pos.lng, targetLat, targetLng)
+                                    } else 0
+                                    val matched = !settings.requireGps || (
+                                        distM <= settings.allowedRadiusMeters &&
+                                            pos.accuracy <= settings.maxAccuracyMeters
+                                        )
+                                    val cityObj = cities.find { it.id == cityIdStr }
+                                    val terObj = territories.find { it.id == terIdStr }
+
+                                    val localSubmission = CustomAuditSubmission(
+                                        id = submitKey,
+                                        reportCode = makeReportCode("AUD-CST"),
+                                        formId = form.id,
+                                        formCode = form.code,
+                                        formTitle = form.title,
+                                        targetType = targetType,
+                                        targetId = targetId,
+                                        targetCode = chosen?.sub ?: "",
+                                        targetName = chosen?.label ?: targetId,
+                                        cityName = cityObj?.name ?: "",
+                                        territoryCode = terObj?.code ?: "",
+                                        territoryName = terObj?.name ?: "",
+                                        auditorId = activeAuditor.id,
+                                        auditorName = activeAuditor.fullName,
+                                        submittedDate = currentIsoDate(),
+                                        submittedTime = currentTimePkt(),
+                                        submittedAtISO = currentIsoTimestamp(),
+                                        mobileLat = pos.lat,
+                                        mobileLng = pos.lng,
+                                        mobileAccuracyMeters = pos.accuracy.toInt(),
+                                        distanceMeters = distM,
+                                        allowedRadiusMeters = settings.allowedRadiusMeters,
+                                        locationMatched = matched,
+                                        answers = stringAnswers,
+                                        capturedImages = photos,
+                                        reviewStatus = "Submitted",
+                                        planId = planLink?.planId,
+                                        planItemId = planLink?.itemId
+                                    )
+
+                                    val saved = onSubmitCustomAudit(localSubmission, cleanAnswers, planLink)
+                                    doneSubmission = saved
+                                    onSubmitted(saved)
+                                } catch (e: Exception) {
+                                    error = e.message ?: "Could not submit. Your entries are kept; try again."
+                                } finally {
+                                    busy = false
+                                }
+                            }
+                        },
+                        enabled = !busy,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AuditPrimaryBlue),
+                        modifier = Modifier
+                            .weight(1.4f)
+                            .height(48.dp)
+                            .testTag("submit_custom_audit_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (busy) "Submitting…" else "Submit Audit",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -774,118 +743,116 @@ private fun CustomFieldInput(
     value: Any?,
     onChange: (Any?) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = if (field.required) "${field.label} *" else field.label,
-            color = AgForeground,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
-        )
-        when (field.type) {
-            "number" -> {
-                OutlinedTextField(
-                    value = value?.toString() ?: "",
-                    onValueChange = { onChange(it) },
-                    placeholder = { Text(field.placeholder ?: "") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+    val labelText = if (field.required) "${field.label} *" else field.label
+    when (field.type) {
+        "yesno" -> {
+            AuditYesNoRow(
+                label = labelText,
+                subtitle = field.helpText,
+                value = value as? Boolean,
+                onValueChange = { onChange(it) }
+            )
+        }
+        "number" -> {
+            AuditNumberStepperRow(
+                label = labelText,
+                subtitle = field.helpText ?: field.placeholder,
+                value = value?.toString()?.toDoubleOrNull()?.toInt() ?: 0,
+                onValueChange = { next ->
+                    val clamped = when {
+                        field.min != null && next < field.min.toInt() -> field.min.toInt()
+                        field.max != null && next > field.max.toInt() -> field.max.toInt()
+                        else -> next.coerceAtLeast(0)
+                    }
+                    onChange(clamped.toString())
+                }
+            )
+        }
+        "select" -> {
+            if (field.options.size in 1..5) {
+                AuditFilterChipsRow(
+                    label = labelText,
+                    subtitle = field.helpText,
+                    options = field.options,
+                    selectedOption = value?.toString() ?: "",
+                    onOptionSelected = { onChange(it) }
                 )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = labelText,
+                        color = AuditTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    var expanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = value?.toString() ?: "",
+                            onValueChange = {},
+                            readOnly = true,
+                            placeholder = { Text("Select…") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            field.options.forEach { opt ->
+                                DropdownMenuItem(
+                                    text = { Text(opt) },
+                                    onClick = {
+                                        onChange(opt)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    field.helpText?.let {
+                        Text(text = it, color = AuditTextSecondary, fontSize = 11.sp)
+                    }
+                }
             }
-            "textarea" -> {
+        }
+        "textarea" -> {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedTextField(
                     value = value?.toString() ?: "",
                     onValueChange = { onChange(it) },
-                    placeholder = { Text(field.placeholder ?: "") },
+                    label = { Text(labelText) },
+                    placeholder = { Text(field.placeholder ?: "Enter remarks or notes...") },
                     minLines = 3,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-            "select" -> {
-                var expanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    OutlinedTextField(
-                        value = value?.toString() ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        placeholder = { Text("Select…") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        field.options.forEach { opt ->
-                            DropdownMenuItem(
-                                text = { Text(opt) },
-                                onClick = {
-                                    onChange(opt)
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
+                field.helpText?.let {
+                    Text(text = it, color = AuditTextSecondary, fontSize = 11.sp)
                 }
             }
-            "yesno" -> {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val isYes = value == true
-                    val isNo = value == false
-                    Button(
-                        onClick = { onChange(true) },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isYes) AgAccentGreen else AgCardWhite,
-                            contentColor = if (isYes) Color.White else AgForeground
-                        ),
-                        border = BorderStroke(1.dp, if (isYes) AgAccentGreen else AgBorder),
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                    ) {
-                        Text("Yes", fontWeight = FontWeight.Bold)
-                    }
-                    Button(
-                        onClick = { onChange(false) },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isNo) AgDestructive else AgCardWhite,
-                            contentColor = if (isNo) Color.White else AgForeground
-                        ),
-                        border = BorderStroke(1.dp, if (isNo) AgDestructive else AgBorder),
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                    ) {
-                        Text("No", fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            else -> {
+        }
+        else -> {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedTextField(
                     value = value?.toString() ?: "",
                     onValueChange = { onChange(it) },
+                    label = { Text(labelText) },
                     placeholder = { Text(field.placeholder ?: if (field.type == "date") "YYYY-MM-DD" else "") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
+                field.helpText?.let {
+                    Text(text = it, color = AuditTextSecondary, fontSize = 11.sp)
+                }
             }
-        }
-        field.helpText?.let {
-            Text(text = it, color = AgMutedText, fontSize = 11.sp)
         }
     }
 }

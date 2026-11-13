@@ -1,0 +1,654 @@
+package pk.auditgrid.audittest.ui.screens
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+// Professional Audit Palette
+private val SlateBackground = Color(0xFFF1F5F9)
+private val CardSurface = Color(0xFFFFFFFF)
+private val PrimaryBlue = Color(0xFF2563EB)
+private val CompliantGreen = Color(0xFF16A34A)
+private val NonCompliantRed = Color(0xFFDC2626)
+private val WarningAmber = Color(0xFFD97706)
+private val TextPrimary = Color(0xFF0F172A)
+private val TextSecondary = Color(0xFF64748B)
+private val BorderLight = Color(0xFFE2E8F0)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfessionalRetailAuditForm(
+    storeName: String = "Al-Fatah Supermarket - Gulberg",
+    gpsVerified: Boolean = true,
+    onBackClick: () -> Unit = {},
+    onScanBarcode: () -> Unit = {},
+    onAddPhoto: () -> Unit = {},
+    onSaveDraft: () -> Unit = {},
+    onSubmitAudit: () -> Unit = {}
+) {
+    // Form State
+    var productSku by remember { mutableStateOf("") }
+    var onShelfAvailable by remember { mutableStateOf<Boolean?>(true) }
+    var stockQuantity by remember { mutableIntStateOf(18) }
+    var facingsCount by remember { mutableIntStateOf(4) }
+    var pricingCorrect by remember { mutableStateOf<Boolean?>(true) }
+    var promoActive by remember { mutableStateOf<Boolean?>(false) }
+    var selectedCondition by remember { mutableStateOf("Good Condition") }
+    var remarks by remember { mutableStateOf("") }
+    var photoCount by remember { mutableIntStateOf(1) }
+
+    // Calculate dynamic completion progress
+    val totalFields = 6
+    val completedFields = listOf(
+        productSku.isNotBlank(),
+        onShelfAvailable != null,
+        stockQuantity >= 0,
+        pricingCorrect != null,
+        promoActive != null,
+        photoCount > 0
+    ).count { it }
+    val progress = completedFields.toFloat() / totalFields.toFloat()
+
+    Scaffold(
+        containerColor = SlateBackground,
+        topBar = {
+            AuditFormTopBar(
+                title = "Retail Shop Audit",
+                subtitle = storeName,
+                progress = progress,
+                gpsVerified = gpsVerified,
+                onBackClick = onBackClick
+            )
+        },
+        bottomBar = {
+            AuditStickyBottomBar(
+                onSaveDraft = onSaveDraft,
+                onSubmit = onSubmitAudit,
+                isSubmitEnabled = completedFields >= 4
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            // SECTION 1: Store & Product Identification
+            item {
+                AuditSectionCard(
+                    title = "1. Product Identification",
+                    icon = Icons.Default.QrCodeScanner
+                ) {
+                    OutlinedTextField(
+                        value = productSku,
+                        onValueChange = { productSku = it },
+                        label = { Text("Product Name or SKU") },
+                        placeholder = { Text("Scan or type SKU...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        trailingIcon = {
+                            FilledIconButton(
+                                onClick = onScanBarcode,
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = PrimaryBlue.copy(alpha = 0.12f),
+                                    contentColor = PrimaryBlue
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCodeScanner,
+                                    contentDescription = "Scan Barcode"
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+
+            // SECTION 2: Shelf Availability & Stock Metrics
+            item {
+                AuditSectionCard(
+                    title = "2. Shelf & Stock Check",
+                    icon = Icons.Default.Inventory2
+                ) {
+                    AuditYesNoRow(
+                        label = "On-Shelf Availability",
+                        subtitle = "Is the product visible on the main aisle shelf?",
+                        value = onShelfAvailable,
+                        onValueChange = { onShelfAvailable = it }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = BorderLight
+                    )
+
+                    AuditNumberStepperRow(
+                        label = "Stock Quantity on Shelf",
+                        subtitle = "Count total sellable units",
+                        value = stockQuantity,
+                        onValueChange = { stockQuantity = it.coerceAtLeast(0) }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = BorderLight
+                    )
+
+                    AuditNumberStepperRow(
+                        label = "Number of Facings",
+                        subtitle = "Front-facing units visible to shoppers",
+                        value = facingsCount,
+                        onValueChange = { facingsCount = it.coerceAtLeast(0) }
+                    )
+                }
+            }
+
+            // SECTION 3: Pricing & Merchandising Compliance
+            item {
+                AuditSectionCard(
+                    title = "3. Pricing & Condition",
+                    icon = Icons.Default.Verified
+                ) {
+                    AuditYesNoRow(
+                        label = "Price Tag Matches MRP?",
+                        subtitle = "Verify shelf price tag is clearly displayed",
+                        value = pricingCorrect,
+                        onValueChange = { pricingCorrect = it }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = BorderLight
+                    )
+
+                    AuditYesNoRow(
+                        label = "POSM / Promo Display Active?",
+                        subtitle = "Check hanger, wobbler, or end-cap branding",
+                        value = promoActive,
+                        onValueChange = { promoActive = it }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = BorderLight
+                    )
+
+                    Text(
+                        text = "Packaging Condition",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val conditions = listOf("Good Condition", "Near Expiry", "Damaged Pack")
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(conditions.size) { index ->
+                            val item = conditions[index]
+                            val isSelected = selectedCondition == item
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedCondition = item },
+                                label = { Text(item) },
+                                leadingIcon = if (isSelected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = when (item) {
+                                        "Good Condition" -> CompliantGreen.copy(alpha = 0.15f)
+                                        "Near Expiry" -> WarningAmber.copy(alpha = 0.15f)
+                                        else -> NonCompliantRed.copy(alpha = 0.15f)
+                                    },
+                                    selectedLabelColor = when (item) {
+                                        "Good Condition" -> CompliantGreen
+                                        "Near Expiry" -> WarningAmber
+                                        else -> NonCompliantRed
+                                    }
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // SECTION 4: Photo Evidence & Auditor Notes
+            item {
+                AuditSectionCard(
+                    title = "4. Evidence & Remarks",
+                    icon = Icons.Default.CameraAlt
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Add Photo Action Card
+                        Surface(
+                            modifier = Modifier
+                                .size(88.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    photoCount++
+                                    onAddPhoto()
+                                },
+                            color = PrimaryBlue.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AddAPhoto,
+                                    contentDescription = "Add Photo",
+                                    tint = PrimaryBlue
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Add Photo",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = PrimaryBlue
+                                )
+                            }
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "$photoCount Photo(s) Attached",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Capture clear front-facing shelf & batch code photos.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    OutlinedTextField(
+                        value = remarks,
+                        onValueChange = { remarks = it },
+                        label = { Text("Auditor Notes / Issues") },
+                        placeholder = { Text("Optional remarks about out-of-stock or competitor activity...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 96.dp),
+                        maxLines = 4,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AuditFormTopBar(
+    title: String,
+    subtitle: String,
+    progress: Float,
+    gpsVerified: Boolean,
+    onBackClick: () -> Unit
+) {
+    Surface(
+        color = CardSurface,
+        shadowElevation = 3.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+                // GPS Status Badge
+                Surface(
+                    color = if (gpsVerified) CompliantGreen.copy(alpha = 0.12f) else WarningAmber.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(
+                        1.dp,
+                        if (gpsVerified) CompliantGreen.copy(alpha = 0.3f) else WarningAmber.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MyLocation,
+                            contentDescription = null,
+                            tint = if (gpsVerified) CompliantGreen else WarningAmber,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (gpsVerified) "GPS Locked" else "Locating...",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (gpsVerified) CompliantGreen else WarningAmber
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Completion Progress Bar
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(CircleShape),
+                    color = PrimaryBlue,
+                    trackColor = BorderLight
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryBlue
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AuditSectionCard(
+    title: String,
+    icon: ImageVector,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CardSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, BorderLight)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = PrimaryBlue,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            }
+            Spacer(modifier = Modifier.height(14.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+fun AuditYesNoRow(
+    label: String,
+    subtitle: String? = null,
+    value: Boolean?,
+    onValueChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SegmentedTogglePill(
+                text = "YES",
+                isSelected = value == true,
+                activeColor = CompliantGreen,
+                onClick = { onValueChange(true) }
+            )
+            SegmentedTogglePill(
+                text = "NO",
+                isSelected = value == false,
+                activeColor = NonCompliantRed,
+                onClick = { onValueChange(false) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SegmentedTogglePill(
+    text: String,
+    isSelected: Boolean,
+    activeColor: Color,
+    onClick: () -> Unit
+) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) activeColor else Color.Transparent,
+        label = "pillBg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) Color.White else TextSecondary,
+        label = "pillContent"
+    )
+
+    Surface(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick),
+        color = bgColor,
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, if (isSelected) activeColor else BorderLight)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = contentColor
+        )
+    }
+}
+
+@Composable
+fun AuditNumberStepperRow(
+    label: String,
+    subtitle: String? = null,
+    value: Int,
+    onValueChange: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            FilledTonalIconButton(
+                onClick = { if (value > 0) onValueChange(value - 1) },
+                modifier = Modifier.size(36.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(18.dp))
+            }
+
+            OutlinedTextField(
+                value = value.toString(),
+                onValueChange = { newText ->
+                    newText.toIntOrNull()?.let { onValueChange(it) }
+                },
+                modifier = Modifier.width(68.dp),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(10.dp)
+            )
+
+            FilledTonalIconButton(
+                onClick = { onValueChange(value + 1) },
+                modifier = Modifier.size(36.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun AuditStickyBottomBar(
+    onSaveDraft: () -> Unit,
+    onSubmit: () -> Unit,
+    isSubmitEnabled: Boolean
+) {
+    Surface(
+        color = CardSurface,
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onSaveDraft,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, BorderLight)
+            ) {
+                Text("Save Draft", fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            }
+
+            Button(
+                onClick = onSubmit,
+                enabled = isSubmitEnabled,
+                modifier = Modifier
+                    .weight(1.4f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CloudUpload,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Submit Audit", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}

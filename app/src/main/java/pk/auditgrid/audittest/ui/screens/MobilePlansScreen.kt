@@ -1469,12 +1469,14 @@ private fun TargetPickerView(
                                 )
                             }
                             if (openAreaId == id) {
+                                var showAllAreaShops by remember(id) { mutableStateOf(false) }
+                                val visibleAreaShops = if (showAllAreaShops || areaShops.size <= 4) areaShops else areaShops.take(4)
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
                                     border = BorderStroke(1.dp, AgLightBorder)
                                 ) {
                                     Column {
-                                        areaShops.forEach { sh ->
+                                        visibleAreaShops.forEach { sh ->
                                             val checked = chosenShops.contains(sh.id)
                                             Row(
                                                 modifier = Modifier
@@ -1498,13 +1500,13 @@ private fun TargetPickerView(
                                         }
                                     }
                                 }
-                                if (subLocationsInSelectedLocalities.size > 4) {
+                                if (areaShops.size > 4) {
                                     ShowMoreListToggle(
-                                        totalCount = subLocationsInSelectedLocalities.size,
+                                        totalCount = areaShops.size,
                                         collapsedLimit = 4,
-                                        expanded = showAllPlanSubs,
-                                        itemLabel = "Sub-Localities",
-                                        onToggle = { showAllPlanSubs = !showAllPlanSubs }
+                                        expanded = showAllAreaShops,
+                                        itemLabel = "Shops",
+                                        onToggle = { showAllAreaShops = !showAllAreaShops }
                                     )
                                 }
                             }

@@ -978,35 +978,39 @@ fun DistributorAuditFormScreen(
         else -> 3
     }
 
+    val distCompletionList = buildList {
+        add(selectedDistributor != null)
+        add(savedItems.isNotEmpty() || selectedProduct != null)
+        add(savedItems.isNotEmpty())
+        if (fh.settings.allowPhotoCapture && fh.visible("photos") && fh.settings.requirePhoto) {
+            add(capturedImages.isNotEmpty())
+        }
+    }
+    val distProgress = if (distCompletionList.isNotEmpty()) {
+        distCompletionList.count { it }.toFloat() / distCompletionList.size.toFloat()
+    } else 0f
+
     Surface(
-        color = AgFormBg,
+        color = AuditSlateBackground,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, AgSoftBlueBorder),
+        border = BorderStroke(1.dp, AuditBorderLight),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Top Royal Blue App Header ("New Audit")
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AgRoyalBlue)
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(onClick = ::closeForm, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                    Text("New Audit", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-                IconButton(onClick = ::closeForm, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White)
-                }
-            }
+            AuditFormTopBar(
+                title = "Distributor Product Audit",
+                subtitle = selectedDistributor?.let { "${it.setupName} (${it.code})" }
+                    ?: "Select Town & Distributor to begin",
+                progress = distProgress,
+                gpsVerified = silentCoords != null,
+                gpsLabelOverride = when {
+                    gpsBusy -> "Locating..."
+                    silentCoords != null -> "GPS Locked (±${silentCoords!!.accuracy.roundToInt()}m)"
+                    else -> "Tap for GPS"
+                },
+                onBackClick = ::closeForm,
+                onRefreshGps = { scope.launch { captureRealLocation() } }
+            )
 
             Column(
                 modifier = Modifier.padding(12.dp),
@@ -1301,9 +1305,20 @@ fun DistributorAuditFormScreen(
                                         }) {
                                             Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
                                         }
-                                    } else if (selectedDistributor != null) {
-                                        IconButton(onClick = { productDropdownOpen = !productDropdownOpen }) {
-                                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Toggle products")
+                                    } else {
+                                        FilledIconButton(
+                                            onClick = { productDropdownOpen = !productDropdownOpen },
+                                            colors = IconButtonDefaults.filledIconButtonColors(
+                                                containerColor = AuditPrimaryBlue.copy(alpha = 0.12f),
+                                                contentColor = AuditPrimaryBlue
+                                            ),
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.QrCodeScanner,
+                                                contentDescription = "Browse or Scan SKU",
+                                                modifier = Modifier.size(18.dp)
+                                            )
                                         }
                                     }
                                 },
@@ -1473,104 +1488,86 @@ fun DistributorAuditFormScreen(
                                 }
                             }
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(
-                                    value = qtyInCtn,
-                                    onValueChange = { qtyInCtn = it.filter { ch -> ch.isDigit() } },
-                                    label = { Text("${fh.label("qtyInCtn", "Qty in CTN")} *", fontSize = 11.sp) },
-                                    placeholder = { Text("0") },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = qtyInBox,
-                                    onValueChange = { qtyInBox = it.filter { ch -> ch.isDigit() } },
-                                    label = { Text("${fh.label("qtyInBox", "Qty in Box")} *", fontSize = 11.sp) },
-                                    placeholder = { Text("0") },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                            AuditNumberStepperRow(
+                                label = "${fh.label("qtyInCtn", "Qty in CTN")} *",
+                                subtitle = "Count full sealed cartons in warehouse",
+                                value = qtyInCtn.toIntOrNull() ?: 0,
+                                onValueChange = { qtyInCtn = it.coerceAtLeast(0).toString() }
+                            )
+
+                            HorizontalDivider(color = AuditBorderLight)
+
+                            AuditNumberStepperRow(
+                                label = "${fh.label("qtyInBox", "Qty in Box")} *",
+                                subtitle = "Count loose individual boxes",
+                                value = qtyInBox.toIntOrNull() ?: 0,
+                                onValueChange = { qtyInBox = it.coerceAtLeast(0).toString() }
+                            )
 
                             if (fh.visible("dispatchDate")) {
+                                HorizontalDivider(color = AuditBorderLight)
                                 OutlinedTextField(
                                     value = dispatchDate,
                                     onValueChange = { dispatchDate = it },
                                     label = {
                                         Text(
-                                            fh.label("dispatchDate", "Dispatch Date") +
-                                                if (fh.required("dispatchDate", true)) " *" else "",
-                                            fontSize = 11.sp
+                                            fh.label("dispatchDate", "Batch / Dispatch Date") +
+                                                if (fh.required("dispatchDate", true)) " *" else ""
                                         )
                                     },
                                     placeholder = { Text(fh.placeholder("dispatchDate", "e.g. 30/10/2026 or JUL-26"), fontSize = 12.sp) },
                                     singleLine = true,
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (fh.visible("stacking")) {
-                                    var stExpanded by remember { mutableStateOf(false) }
-                                    val stOptions = fh.options("stacking", listOf("Yes", "No"))
-                                    ExposedDropdownMenuBox(
-                                        expanded = stExpanded,
-                                        onExpandedChange = { stExpanded = !stExpanded },
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        OutlinedTextField(
-                                            value = stacking.ifEmpty { "Select…" },
-                                            onValueChange = {},
-                                            readOnly = true,
-                                            label = {
-                                                Text(
-                                                    fh.label("stacking", "Stacking") +
-                                                        if (fh.required("stacking", true)) " *" else "",
-                                                    fontSize = 11.sp
-                                                )
-                                            },
-                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = stExpanded) },
-                                            shape = RoundedCornerShape(10.dp),
-                                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                        )
-                                        ExposedDropdownMenu(
-                                            expanded = stExpanded,
-                                            onDismissRequest = { stExpanded = false }
-                                        ) {
-                                            stOptions.forEach { o ->
-                                                DropdownMenuItem(
-                                                    text = { Text(o) },
-                                                    onClick = {
-                                                        stacking = o
-                                                        stExpanded = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                if (fh.visible("remarks")) {
-                                    OutlinedTextField(
-                                        value = remarks,
-                                        onValueChange = { remarks = it },
-                                        label = {
-                                            Text(
-                                                fh.label("remarks", "Remarks") +
-                                                    if (fh.required("remarks")) " *" else "",
-                                                fontSize = 11.sp
-                                            )
+                            if (fh.visible("stacking")) {
+                                HorizontalDivider(color = AuditBorderLight)
+                                val stOptions = fh.options("stacking", listOf("Yes", "No"))
+                                val isSimpleYesNo = stOptions.size == 2 &&
+                                    stOptions.any { it.equals("Yes", ignoreCase = true) } &&
+                                    stOptions.any { it.equals("No", ignoreCase = true) }
+                                if (isSimpleYesNo) {
+                                    AuditYesNoRow(
+                                        label = fh.label("stacking", "Proper Warehouse Stacking?") +
+                                            if (fh.required("stacking", true)) " *" else "",
+                                        subtitle = "Verify pallet & carton stacking height compliance",
+                                        value = when {
+                                            stacking.equals("Yes", ignoreCase = true) -> true
+                                            stacking.equals("No", ignoreCase = true) -> false
+                                            else -> null
                                         },
-                                        placeholder = { Text(fh.placeholder("remarks", "Optional notes"), fontSize = 12.sp) },
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f)
+                                        onValueChange = { stacking = if (it) "Yes" else "No" }
+                                    )
+                                } else {
+                                    AuditFilterChipsRow(
+                                        label = fh.label("stacking", "Stacking Condition") +
+                                            if (fh.required("stacking", true)) " *" else "",
+                                        subtitle = "Select warehouse stacking compliance status",
+                                        options = stOptions,
+                                        selectedOption = stacking,
+                                        onOptionSelected = { stacking = it }
                                     )
                                 }
+                            }
+
+                            if (fh.visible("remarks")) {
+                                HorizontalDivider(color = AuditBorderLight)
+                                OutlinedTextField(
+                                    value = remarks,
+                                    onValueChange = { remarks = it },
+                                    label = {
+                                        Text(
+                                            fh.label("remarks", "Product Remarks / Notes") +
+                                                if (fh.required("remarks")) " *" else ""
+                                        )
+                                    },
+                                    placeholder = { Text(fh.placeholder("remarks", "Optional batch or condition notes..."), fontSize = 12.sp) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
 
                             Row(
@@ -1875,90 +1872,52 @@ fun DistributorAuditFormScreen(
                     }
                 }
 
-                // Capture Images Card
+                // Capture Images Card (Professional Evidence Section)
                 if (fh.settings.allowPhotoCapture && fh.visible("photos")) {
-                    Surface(
-                        color = AgCardWhite,
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, AgLightBorder),
-                        modifier = Modifier.fillMaxWidth()
+                    AuditSectionCard(
+                        title = "4. Evidence & Warehouse Photos",
+                        icon = Icons.Default.CameraAlt,
+                        badgeText = "${capturedImages.size}/${fh.settings.maxPhotos}"
                     ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(Icons.Default.CameraAlt, contentDescription = null, tint = AgActionBlue, modifier = Modifier.size(16.dp))
-                                Text(
-                                    text = "${fh.label("photos", "Capture Images")} ${if (fh.settings.requirePhoto) "(Required)" else "(Optional)"} ${capturedImages.size}/${fh.settings.maxPhotos}",
-                                    color = AgPrimary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.ExtraBold
+                        AuditPhotoCaptureBlock(
+                            photoCount = capturedImages.size,
+                            maxPhotos = fh.settings.maxPhotos,
+                            required = fh.settings.requirePhoto,
+                            subtitle = "Capture clear warehouse stock, pallet stacking & batch code photos.",
+                            onTakePhoto = {
+                                val granted = ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.CAMERA
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (granted) cameraLauncher.launch(null)
+                                else cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
+                            },
+                            onPickGallery = {
+                                galleryLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             }
+                        )
 
-                            if (capturedImages.size < fh.settings.maxPhotos) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            val granted = ContextCompat.checkSelfPermission(
-                                                context,
-                                                android.Manifest.permission.CAMERA
-                                            ) == PackageManager.PERMISSION_GRANTED
-                                            if (granted) cameraLauncher.launch(null)
-                                            else cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, Color(0xFF93C5FD)),
+                        if (capturedImages.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                capturedImages.forEach { img ->
+                                    Box(
                                         modifier = Modifier
-                                            .weight(1f)
-                                            .heightIn(min = 48.dp)
+                                            .size(76.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(1.dp, AuditBorderLight, RoundedCornerShape(12.dp))
                                     ) {
-                                        Icon(Icons.Default.CameraAlt, contentDescription = null, tint = AgActionBlue, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Tap to Capture", color = AgForeground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    OutlinedButton(
-                                        onClick = {
-                                            galleryLauncher.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, Color(0xFF93C5FD)),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .heightIn(min = 48.dp)
-                                    ) {
-                                        Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = AgActionBlue, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Upload Gallery", color = AgActionBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-
-                            if (capturedImages.isNotEmpty()) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    capturedImages.forEach { img ->
-                                        Box(
+                                        DataUrlImage(img.url, img.caption, Modifier.fillMaxSize())
+                                        IconButton(
+                                            onClick = { capturedImages = capturedImages.filterNot { it.id == img.id } },
                                             modifier = Modifier
-                                                .size(76.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .border(1.dp, AgBorder, RoundedCornerShape(12.dp))
+                                                .align(Alignment.TopEnd)
+                                                .size(22.dp)
+                                                .background(AgForeground.copy(alpha = 0.8f), CircleShape)
                                         ) {
-                                            DataUrlImage(img.url, img.caption, Modifier.fillMaxSize())
-                                            IconButton(
-                                                onClick = { capturedImages = capturedImages.filterNot { it.id == img.id } },
-                                                modifier = Modifier
-                                                    .align(Alignment.TopEnd)
-                                                    .size(22.dp)
-                                                    .background(AgForeground.copy(alpha = 0.8f), CircleShape)
-                                            ) {
-                                                Icon(Icons.Default.Close, contentDescription = "Remove image", tint = Color.White, modifier = Modifier.size(12.dp))
-                                            }
+                                            Icon(Icons.Default.Close, contentDescription = "Remove image", tint = Color.White, modifier = Modifier.size(12.dp))
                                         }
                                     }
                                 }

@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -694,85 +695,30 @@ fun RetailShopAuditFormScreen(
         activePopupShop = shop
     }
 
+    val liveScreenGps by WarmLocationManager.latestPosition.collectAsState()
+    val retailProgress = if (auditListShops.isNotEmpty()) {
+        doneAuditListShops.size.toFloat() / auditListShops.size.toFloat()
+    } else 0f
+
     Surface(
-        color = AgFormBg,
+        color = AuditSlateBackground,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, AgSoftBlueBorder),
+        border = BorderStroke(1.dp, AuditBorderLight),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Royal Blue Top Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AgRoyalBlue)
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (onBackToForms != null) {
-                        IconButton(
-                            onClick = onBackToForms,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back to Audit Forms",
-                                tint = Color.White
-                            )
-                        }
-                    }
-                    Column {
-                        Text(
-                            text = "Retail Audit",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Mark shops from any locality into your Audit List",
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    if (auditListShops.isNotEmpty()) {
-                        Surface(
-                            color = Color.White.copy(alpha = 0.18f),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "List: ${doneAuditListShops.size}/${auditListShops.size}",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                    if (onBackToForms != null) {
-                        IconButton(
-                            onClick = onBackToForms,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Home",
-                                tint = Color.White
-                            )
-                        }
-                    }
-                }
-            }
+            AuditFormTopBar(
+                title = "Retail Shop Audit",
+                subtitle = if (auditListShops.isNotEmpty()) {
+                    "${doneAuditListShops.size} of ${auditListShops.size} shop(s) audited in list"
+                } else {
+                    "Mark shops from any locality into your Audit List"
+                },
+                progress = retailProgress,
+                gpsVerified = liveScreenGps != null,
+                gpsLabelOverride = liveScreenGps?.let { "GPS Locked (±${it.accuracy.roundToInt()}m)" },
+                onBackClick = { onBackToForms?.invoke() }
+            )
 
             Column(
                 modifier = Modifier.padding(14.dp),
@@ -2671,315 +2617,302 @@ private fun ShopAuditPopupDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            color = AgCardWhite,
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, AgSoftBlueBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 640.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Modal Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Default.Storefront, contentDescription = null, tint = AgRoyalBlue)
-                        Text("Shop Audit", color = AgRoyalBlue, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
-                    }
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
-                }
-                HorizontalDivider(color = AgLightBorder)
+    // Dynamic completion progress across shop fields
+    val isClosedShopState = shopStatus.equals("Close", ignoreCase = true)
+    val completionChecks = if (isClosedShopState) {
+        listOf(true)
+    } else {
+        buildList {
+            add(shopStatus.isNotBlank())
+            if (fh.visible("productACount")) add(productACount.isNotBlank())
+            if (fh.visible("productBCount")) add(productBCount.isNotBlank())
+            if (fh.visible("displayRating")) add(displayRating.isNotBlank())
+            if (fh.visible("packedProductQty")) add(packedQty.isNotBlank())
+            if (fh.visible("salesFloTagged")) add(salesFloTagged.isNotBlank())
+            if (fh.visible("doubleTag")) add(doubleTag.isNotBlank())
+            if (fh.visible("obVisit")) add(obVisit.isNotBlank())
+            if (fh.visible("computerizedBill")) add(computerizedBill.isNotBlank())
+            if (fh.settings.allowPhotoCapture && fh.visible("photos") && fh.settings.requirePhoto) {
+                add(shopImages.isNotEmpty())
+            }
+        }
+    }
+    val shopProgress = if (completionChecks.isNotEmpty()) {
+        completionChecks.count { it }.toFloat() / completionChecks.size.toFloat()
+    } else 1f
 
+    val distPreview = if (liveShopGps != null && (shop.lat != 0.0 || shop.lng != 0.0)) {
+        calculateDistanceMeters(liveShopGps.lat, liveShopGps.lng, shop.lat, shop.lng)
+    } else null
+
+    val gpsBadgeLabel = when {
+        liveShopGps != null && distPreview != null -> "GPS Locked · ${distPreview}m"
+        liveShopGps != null -> "GPS Locked (±${liveShopGps.accuracy.roundToInt()}m)"
+        isPreFetchingGps -> "Locating..."
+        else -> "Warming GPS..."
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            color = AuditSlateBackground,
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.dp, AuditBorderLight),
+            modifier = Modifier
+                .fillMaxWidth(0.96f)
+                .fillMaxHeight(0.92f)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top Bar with GPS Status Pill & Completion Progress Bar
+                AuditFormTopBar(
+                    title = "Retail Shop Audit",
+                    subtitle = "${shop.name} (${shop.code})",
+                    progress = shopProgress,
+                    gpsVerified = liveShopGps != null,
+                    gpsLabelOverride = gpsBadgeLabel,
+                    onBackClick = onDismiss
+                )
+
+                // Scrollable Section Cards
                 Column(
                     modifier = Modifier
-                        .weight(1f, fill = false)
+                        .weight(1f)
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Compact Collapsible Shop Metadata Card
-                    var showFullShopMeta by remember(shop.id) { mutableStateOf(false) }
-                    Surface(
-                        color = AgFormBg,
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, AgBorder),
-                        modifier = Modifier.fillMaxWidth()
+                    // SECTION 1: Store Identification & Status
+                    AuditSectionCard(
+                        title = "1. Store Identification & Status",
+                        icon = Icons.Default.Storefront,
+                        badgeText = shop.code
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .padding(12.dp)
-                                .animateContentSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = shop.name,
-                                        color = AgForeground,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "${shop.code} · ${shop.phone.ifBlank { "No Phone" }}",
-                                        color = AgMutedText,
-                                        fontSize = 11.sp,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                                CardMoreDetailsToggle(
-                                    expanded = showFullShopMeta,
-                                    labelCollapsed = "More Info",
-                                    labelExpanded = "Less Info",
-                                    onToggle = { showFullShopMeta = !showFullShopMeta }
-                                )
-                            }
-                            if (showFullShopMeta) {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    StructuredMetaGridItem("Owner Name", shop.ownerName.ifBlank { "—" }, Modifier.fillMaxWidth())
-                                    StructuredMetaGridItem("Address", shop.addressLine.ifBlank { "—" }, Modifier.fillMaxWidth())
-                                }
-                            }
-                        }
-                    }
-
-                    // Live Background GPS Pre-fetch Badge
-                    Surface(
-                        color = if (liveShopGps != null) AgAccentGreenBg else AgSoftBlueBg,
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, if (liveShopGps != null) AgAccentGreen.copy(alpha = 0.4f) else AgSoftBlueBorder),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                        var showFullShopMeta by remember(shop.id) { mutableStateOf(false) }
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MyLocation,
-                                    contentDescription = null,
-                                    tint = if (liveShopGps != null) AgAccentGreenDark else AgActionBlue,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                val distPreview = if (liveShopGps != null && (shop.lat != 0.0 || shop.lng != 0.0)) {
-                                    calculateDistanceMeters(liveShopGps.lat, liveShopGps.lng, shop.lat, shop.lng)
-                                } else null
-                                Text(
-                                    text = when {
-                                        liveShopGps != null && distPreview != null ->
-                                            "GPS Locked in Background (±${liveShopGps.accuracy.roundToInt()}m · ${distPreview}m from shop)"
-                                        liveShopGps != null ->
-                                            "GPS Locked in Background (±${liveShopGps.accuracy.roundToInt()}m)"
-                                        isPreFetchingGps ->
-                                            "Pre-fetching GPS location in background…"
-                                        else ->
-                                            "Warming up GPS in background…"
-                                    },
-                                    color = if (liveShopGps != null) AgAccentGreenDark else AgForeground,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                    HorizontalDivider(color = AgLightBorder)
-
-                    // Shop Status (Default: Open; if Close -> Submit as Closed without Audit)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${fh.label("shopStatus", "Shop Status")} *",
-                            color = AgForeground,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .background(AgInputFill, RoundedCornerShape(10.dp))
-                                .border(1.dp, AgBorder, RoundedCornerShape(10.dp))
-                                .padding(4.dp)
-                        ) {
-                            SHOP_STATUS_OPTIONS.forEach { st ->
-                                val active = shopStatus.equals(st, ignoreCase = true)
-                                val activeBg = if (st == "Open") AgAccentGreenDark else AgDestructive
-                                Surface(
-                                    color = if (active) activeBg else Color.Transparent,
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.clickable {
-                                        shopStatus = st
-                                        formProblem = null
-                                    }
-                                ) {
-                                    Text(
-                                        text = st,
-                                        color = if (active) Color.White else AgMutedText,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (shopStatus.equals("Close", ignoreCase = true)) {
-                        Surface(
-                            color = AgWarningBg,
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, AgWarning)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(
-                                modifier = Modifier.padding(10.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 Text(
-                                    text = "Shop is Marked as Closed",
-                                    color = AgWarningDark,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.ExtraBold
+                                    text = shop.name,
+                                    color = AuditTextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "Product and visit audit fields are skipped when a shop is closed. Tap 'Submit as Closed without Audit' below to submit directly, or 'Save Closed in List' to keep auditing other shops.",
-                                    color = AgWarningDark,
-                                    fontSize = 11.sp
+                                    text = "Owner: ${shop.ownerName.ifBlank { "—" }} · ${shop.phone.ifBlank { "No Phone" }}",
+                                    color = AuditTextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            CardMoreDetailsToggle(
+                                expanded = showFullShopMeta,
+                                labelCollapsed = "More Info",
+                                labelExpanded = "Less Info",
+                                onToggle = { showFullShopMeta = !showFullShopMeta }
+                            )
+                        }
+                        if (showFullShopMeta) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                StructuredMetaGridItem("Address", shop.addressLine.ifBlank { "—" }, Modifier.fillMaxWidth())
+                                StructuredMetaGridItem("Shop Category", shop.shopCategory.ifBlank { "Retail Shop" }, Modifier.fillMaxWidth())
+                            }
+                        }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = AuditBorderLight
+                        )
+
+                        AuditYesNoRow(
+                            label = "${fh.label("shopStatus", "Shop Status")} *",
+                            subtitle = "Is this retail store open for audit inspection?",
+                            value = !shopStatus.equals("Close", ignoreCase = true),
+                            onValueChange = { isOpen ->
+                                shopStatus = if (isOpen) "Open" else "Close"
+                                formProblem = null
+                            },
+                            yesText = "Open",
+                            noText = "Close"
+                        )
+
+                        if (isClosedShopState) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                color = AgWarningBg,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, AuditWarningAmber.copy(alpha = 0.45f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Shop is Marked as Closed",
+                                        color = AgWarningDark,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                    Text(
+                                        text = "Shelf and merchandising fields are skipped when a shop is closed. Tap 'Submit as Closed without Audit' below to submit directly, or 'Save Closed in List' to keep auditing other shops.",
+                                        color = AgWarningDark,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 2: Shelf Availability & Stock Metrics (when Open)
+                    if (!isClosedShopState && (fh.visible("productACount") || fh.visible("productBCount") || fh.visible("packedProductQty"))) {
+                        AuditSectionCard(
+                            title = "2. Shelf & Stock Check",
+                            icon = Icons.Default.Inventory2
+                        ) {
+                            if (fh.visible("productACount")) {
+                                AuditNumberStepperRow(
+                                    label = fh.label("productACount", "No. of Product-A") + if (fh.required("productACount", true)) " *" else "",
+                                    subtitle = "Count front-facing & shelf units for Group A",
+                                    value = productACount.toIntOrNull() ?: 0,
+                                    onValueChange = { productACount = it.coerceAtLeast(0).toString() }
+                                )
+                            }
+                            if (fh.visible("productACount") && fh.visible("productBCount")) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    color = AuditBorderLight
+                                )
+                            }
+                            if (fh.visible("productBCount")) {
+                                AuditNumberStepperRow(
+                                    label = fh.label("productBCount", "No. of Product-B") + if (fh.required("productBCount", true)) " *" else "",
+                                    subtitle = "Count front-facing & shelf units for Group B",
+                                    value = productBCount.toIntOrNull() ?: 0,
+                                    onValueChange = { productBCount = it.coerceAtLeast(0).toString() }
+                                )
+                            }
+                            if ((fh.visible("productACount") || fh.visible("productBCount")) && fh.visible("packedProductQty")) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    color = AuditBorderLight
+                                )
+                            }
+                            if (fh.visible("packedProductQty")) {
+                                AuditNumberStepperRow(
+                                    label = fh.label("packedProductQty", "Packed Product Qty (Not in Display)") + if (fh.required("packedProductQty", true)) " *" else "",
+                                    subtitle = "Count sealed cartons or back-room stock units",
+                                    value = packedQty.toIntOrNull() ?: 0,
+                                    onValueChange = { packedQty = it.coerceAtLeast(0).toString() }
                                 )
                             }
                         }
-                    } else {
-                        if (fh.visible("productACount")) {
-                            StepperInputRow(
-                                label = fh.label("productACount", "No. of Product-A"),
-                                required = fh.required("productACount", true),
-                                value = productACount,
-                                onChange = { productACount = it }
-                            )
-                        }
-                        if (fh.visible("productBCount")) {
-                            StepperInputRow(
-                                label = fh.label("productBCount", "No. of Product-B"),
-                                required = fh.required("productBCount", true),
-                                value = productBCount,
-                                onChange = { productBCount = it }
-                            )
-                        }
-                        if (fh.visible("displayRating")) {
-                            SelectOptionRow(
-                                label = fh.label("displayRating", "Display"),
-                                required = fh.required("displayRating", true),
-                                value = displayRating,
-                                options = fh.options("displayRating", DISPLAY_OPTIONS),
-                                onChange = { displayRating = it }
-                            )
-                        }
-                        if (fh.visible("packedProductQty")) {
-                            StepperInputRow(
-                                label = fh.label("packedProductQty", "Packed Product Qty (Not in Display)"),
-                                required = fh.required("packedProductQty", true),
-                                value = packedQty,
-                                onChange = { packedQty = it }
-                            )
-                        }
-                        if (fh.visible("salesFloTagged")) {
-                            SelectOptionRow(
-                                label = fh.label("salesFloTagged", "Shop Tagged in SalesFlo"),
-                                required = fh.required("salesFloTagged", true),
-                                value = salesFloTagged,
-                                options = fh.options("salesFloTagged", YES_NO_OPTIONS),
-                                onChange = { salesFloTagged = it }
-                            )
-                        }
-                        if (fh.visible("doubleTag")) {
-                            SelectOptionRow(
-                                label = fh.label("doubleTag", "Double Tag"),
-                                required = fh.required("doubleTag", true),
-                                value = doubleTag,
-                                options = fh.options("doubleTag", YES_NO_OPTIONS),
-                                onChange = { doubleTag = it }
-                            )
-                        }
-                        if (fh.visible("obVisit")) {
-                            SelectOptionRow(
-                                label = fh.label("obVisit", "OB Visit"),
-                                required = fh.required("obVisit", true),
-                                value = obVisit,
-                                options = fh.options("obVisit", OB_VISIT_OPTIONS),
-                                onChange = { obVisit = it }
-                            )
-                        }
-                        if (fh.visible("computerizedBill")) {
-                            SelectOptionRow(
-                                label = fh.label("computerizedBill", "Computerized Bill"),
-                                required = fh.required("computerizedBill", true),
-                                value = computerizedBill,
-                                options = fh.options("computerizedBill", YES_NO_OPTIONS),
-                                onChange = { computerizedBill = it }
-                            )
+                    }
+
+                    // SECTION 3: Merchandising & Compliance (when Open)
+                    if (!isClosedShopState && (fh.visible("displayRating") || fh.visible("salesFloTagged") || fh.visible("doubleTag") || fh.visible("obVisit") || fh.visible("computerizedBill"))) {
+                        AuditSectionCard(
+                            title = "3. Merchandising & Compliance",
+                            icon = Icons.Default.Verified
+                        ) {
+                            if (fh.visible("displayRating")) {
+                                AuditFilterChipsRow(
+                                    label = fh.label("displayRating", "Shelf Display Rating") + if (fh.required("displayRating", true)) " *" else "",
+                                    subtitle = "Evaluate shelf visibility, arrangement, and POSM condition",
+                                    options = fh.options("displayRating", DISPLAY_OPTIONS),
+                                    selectedOption = displayRating,
+                                    onOptionSelected = { displayRating = it }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    color = AuditBorderLight
+                                )
+                            }
+
+                            if (fh.visible("salesFloTagged")) {
+                                AuditYesNoRow(
+                                    label = fh.label("salesFloTagged", "Shop Tagged in SalesFlo?") + if (fh.required("salesFloTagged", true)) " *" else "",
+                                    subtitle = "Verify SalesFlo barcode tag is clearly affixed",
+                                    value = when {
+                                        salesFloTagged.equals("Yes", ignoreCase = true) -> true
+                                        salesFloTagged.equals("No", ignoreCase = true) -> false
+                                        else -> null
+                                    },
+                                    onValueChange = { salesFloTagged = if (it) "Yes" else "No" }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    color = AuditBorderLight
+                                )
+                            }
+
+                            if (fh.visible("doubleTag")) {
+                                AuditYesNoRow(
+                                    label = fh.label("doubleTag", "Double Tag Present?") + if (fh.required("doubleTag", true)) " *" else "",
+                                    subtitle = "Check if duplicate tagging is present on the store",
+                                    value = when {
+                                        doubleTag.equals("Yes", ignoreCase = true) -> true
+                                        doubleTag.equals("No", ignoreCase = true) -> false
+                                        else -> null
+                                    },
+                                    onValueChange = { doubleTag = if (it) "Yes" else "No" }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    color = AuditBorderLight
+                                )
+                            }
+
+                            if (fh.visible("obVisit")) {
+                                AuditFilterChipsRow(
+                                    label = fh.label("obVisit", "Order Booker (OB) Visit") + if (fh.required("obVisit", true)) " *" else "",
+                                    subtitle = "Confirm OB visit frequency with the shopkeeper",
+                                    options = fh.options("obVisit", OB_VISIT_OPTIONS),
+                                    selectedOption = obVisit,
+                                    onOptionSelected = { obVisit = it }
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    color = AuditBorderLight
+                                )
+                            }
+
+                            if (fh.visible("computerizedBill")) {
+                                AuditYesNoRow(
+                                    label = fh.label("computerizedBill", "Computerized Bill?") + if (fh.required("computerizedBill", true)) " *" else "",
+                                    subtitle = "Does the shop receive computerized distributor invoices?",
+                                    value = when {
+                                        computerizedBill.equals("Yes", ignoreCase = true) -> true
+                                        computerizedBill.equals("No", ignoreCase = true) -> false
+                                        else -> null
+                                    },
+                                    onValueChange = { computerizedBill = if (it) "Yes" else "No" }
+                                )
+                            }
                         }
                     }
 
-                    if (fh.visible("remarks")) {
-                        OutlinedTextField(
-                            value = remarks,
-                            onValueChange = { remarks = it },
-                            label = {
-                                Text(
-                                    fh.label("remarks", "Remarks") +
-                                        if (!shopStatus.equals("Close", ignoreCase = true) && fh.required("remarks")) " *" else ""
-                                )
-                            },
-                            placeholder = {
-                                Text(
-                                    if (shopStatus.equals("Close", ignoreCase = true)) "Optional note for closed shop"
-                                    else fh.placeholder("remarks", "Optional notes")
-                                )
-                            },
-                            minLines = 2,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    if (fh.settings.allowPhotoCapture && fh.visible("photos")) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "${fh.label("photos", "Capture Image")} ${if (!shopStatus.equals("Close", ignoreCase = true) && fh.settings.requirePhoto) "(Required)" else "(Optional)"} ${shopImages.size}/${fh.settings.maxPhotos}",
-                                color = AgForeground,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = {
+                    // SECTION 4: Photo Evidence & Auditor Notes
+                    if ((fh.settings.allowPhotoCapture && fh.visible("photos")) || fh.visible("remarks")) {
+                        AuditSectionCard(
+                            title = if (isClosedShopState) "2. Evidence & Remarks" else "4. Evidence & Remarks",
+                            icon = Icons.Default.CameraAlt
+                        ) {
+                            if (fh.settings.allowPhotoCapture && fh.visible("photos")) {
+                                AuditPhotoCaptureBlock(
+                                    photoCount = shopImages.size,
+                                    maxPhotos = fh.settings.maxPhotos,
+                                    required = !isClosedShopState && fh.settings.requirePhoto,
+                                    subtitle = "Capture clear front-facing shelf & store fascia photos.",
+                                    onTakePhoto = {
                                         val granted = ContextCompat.checkSelfPermission(
                                             context,
                                             android.Manifest.permission.CAMERA
@@ -2987,49 +2920,65 @@ private fun ShopAuditPopupDialog(
                                         if (granted) cameraLauncher.launch(null)
                                         else cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
                                     },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Camera", fontSize = 12.sp)
-                                }
-                                OutlinedButton(
-                                    onClick = {
+                                    onPickGallery = {
                                         galleryLauncher.launch(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                         )
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Gallery", fontSize = 12.sp)
-                                }
-                            }
-                            if (shopImages.isNotEmpty()) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    shopImages.forEach { img ->
-                                        Box(
-                                            modifier = Modifier
-                                                .size(64.dp)
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .border(1.dp, AgBorder, RoundedCornerShape(10.dp))
-                                        ) {
-                                            DataUrlImage(img.url, img.caption, Modifier.fillMaxSize())
-                                            IconButton(
-                                                onClick = { shopImages = shopImages.filterNot { it.id == img.id } },
+                                    }
+                                )
+
+                                if (shopImages.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        shopImages.forEach { img ->
+                                            Box(
                                                 modifier = Modifier
-                                                    .align(Alignment.TopEnd)
-                                                    .size(22.dp)
-                                                    .background(Color.Black.copy(alpha = 0.7f), CircleShape)
+                                                    .size(72.dp)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .border(1.dp, AuditBorderLight, RoundedCornerShape(10.dp))
                                             ) {
-                                                Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(12.dp))
+                                                DataUrlImage(img.url, img.caption, Modifier.fillMaxSize())
+                                                IconButton(
+                                                    onClick = { shopImages = shopImages.filterNot { it.id == img.id } },
+                                                    modifier = Modifier
+                                                        .align(Alignment.TopEnd)
+                                                        .size(22.dp)
+                                                        .background(Color.Black.copy(alpha = 0.7f), CircleShape)
+                                                ) {
+                                                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(12.dp))
+                                                }
                                             }
                                         }
                                     }
                                 }
+
+                                if (fh.visible("remarks")) {
+                                    Spacer(modifier = Modifier.height(14.dp))
+                                }
+                            }
+
+                            if (fh.visible("remarks")) {
+                                OutlinedTextField(
+                                    value = remarks,
+                                    onValueChange = { remarks = it },
+                                    label = {
+                                        Text(
+                                            fh.label("remarks", "Auditor Notes / Issues") +
+                                                if (!isClosedShopState && fh.required("remarks")) " *" else ""
+                                        )
+                                    },
+                                    placeholder = {
+                                        Text(
+                                            if (isClosedShopState) "Optional note for closed shop..."
+                                            else fh.placeholder("remarks", "Optional remarks about out-of-stock or competitor activity...")
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 92.dp),
+                                    maxLines = 4,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
                             }
                         }
                     }
@@ -3037,95 +2986,119 @@ private fun ShopAuditPopupDialog(
                     formProblem?.let {
                         Surface(
                             color = AgDestructiveBg,
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, AgDestructive)
                         ) {
-                            Text(it, color = AgDestructiveDark, fontSize = 12.sp, modifier = Modifier.padding(10.dp))
+                            Text(
+                                text = it,
+                                color = AgDestructiveDark,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(12.dp)
+                            )
                         }
                     }
 
                     shopGpsError?.let {
                         Surface(
                             color = AgDestructiveBg,
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, AgDestructive)
                         ) {
-                            Text("$it Tap Save to try again.", color = AgDestructiveDark, fontSize = 12.sp, modifier = Modifier.padding(10.dp))
+                            Text(
+                                text = "$it Tap Save to try again.",
+                                color = AgDestructiveDark,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(12.dp)
+                            )
                         }
                     }
+                }
 
-                    if (shopStatus.equals("Close", ignoreCase = true)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Sticky Bottom Action Bar
+                Surface(
+                    color = AuditCardSurface,
+                    shadowElevation = 8.dp,
+                    border = BorderStroke(1.dp, AuditBorderLight)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (isClosedShopState) {
                             Button(
                                 onClick = { performSaveShopAudit(submitImmediately = true) },
                                 enabled = !isSavingWithGps,
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AgDestructive),
+                                colors = ButtonDefaults.buttonColors(containerColor = AuditNonCompliantRed),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 44.dp)
+                                    .height(46.dp)
                                     .testTag("submit_closed_shop_button")
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
                                 Text(
                                     text = if (isSavingWithGps) "Submitting as Closed..." else "Submit as Closed without Audit",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
+                                    fontSize = 13.sp
                                 )
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 OutlinedButton(
                                     onClick = onDismiss,
                                     shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(2.dp, AgActionBlue),
+                                    border = BorderStroke(1.dp, AuditBorderLight),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .heightIn(min = 42.dp)
+                                        .height(46.dp)
                                 ) {
-                                    Text("Cancel", color = AgActionBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("Cancel", color = AuditTextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                 }
                                 Button(
                                     onClick = { performSaveShopAudit(submitImmediately = false) },
                                     enabled = !isSavingWithGps,
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = AgActionBlue),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AuditPrimaryBlue),
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .heightIn(min = 42.dp)
+                                        .weight(1.3f)
+                                        .height(46.dp)
                                         .testTag("save_shop_audit_button")
                                 ) {
-                                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(17.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text(if (isSavingWithGps) "Saving..." else "Save Closed in List", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text(if (isSavingWithGps) "Saving..." else "Save Closed in List", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                             }
-                        }
-                    } else {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedButton(
-                                onClick = onDismiss,
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(2.dp, AgActionBlue),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 44.dp)
-                            ) {
-                                Text("Cancel", color = AgActionBlue, fontWeight = FontWeight.Bold)
-                            }
-                            Button(
-                                onClick = { performSaveShopAudit(submitImmediately = false) },
-                                enabled = !isSavingWithGps,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AgActionBlue),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = 44.dp)
-                                    .testTag("save_shop_audit_button")
-                            ) {
-                                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(if (isSavingWithGps) "Saving..." else "Save", fontWeight = FontWeight.Bold)
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedButton(
+                                    onClick = onDismiss,
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, AuditBorderLight),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                ) {
+                                    Text("Cancel", color = AuditTextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
+                                Button(
+                                    onClick = { performSaveShopAudit(submitImmediately = false) },
+                                    enabled = !isSavingWithGps,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AuditPrimaryBlue),
+                                    modifier = Modifier
+                                        .weight(1.4f)
+                                        .height(48.dp)
+                                        .testTag("save_shop_audit_button")
+                                ) {
+                                    Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(if (isSavingWithGps) "Saving..." else "Save Shop Audit", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
                             }
                         }
                     }
